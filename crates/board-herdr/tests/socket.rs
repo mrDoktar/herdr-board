@@ -124,16 +124,16 @@ fn protocol_gate_accepts_exact_supported_contract() {
         assert_eq!(req["method"], "ping");
         reply_for(
             req,
-            r#"{"type":"pong","version":"0.8.2","protocol":20,"capabilities":{}}"#,
+            r#"{"type":"pong","version":"0.9.0","protocol":22,"capabilities":{}}"#,
         )
     });
 
     let mut c = HerdrClient::connect(&path).unwrap();
     let pong = c
         .require_supported_protocol()
-        .expect("Herdr 0.8.2 with protocol 20 must be accepted");
-    assert_eq!(SUPPORTED_HERDR_VERSION, "0.8.2");
-    assert_eq!(SUPPORTED_HERDR_PROTOCOL, 20);
+        .expect("Herdr 0.9.0 with protocol 22 must be accepted");
+    assert_eq!(SUPPORTED_HERDR_VERSION, "0.9.0");
+    assert_eq!(SUPPORTED_HERDR_PROTOCOL, 22);
     assert_eq!(pong.version, SUPPORTED_HERDR_VERSION);
     assert_eq!(pong.protocol, SUPPORTED_HERDR_PROTOCOL);
 }
@@ -145,7 +145,7 @@ fn deprecated_protocol_adapter_accepts_only_the_supported_protocol() {
         assert_eq!(req["method"], "ping");
         reply_for(
             req,
-            r#"{"type":"pong","version":"0.8.2","protocol":20,"capabilities":{}}"#,
+            r#"{"type":"pong","version":"0.9.0","protocol":22,"capabilities":{}}"#,
         )
     });
 
@@ -239,7 +239,7 @@ fn is_live_true_on_pong() {
     let path = serve_calls(|req| {
         reply_for(
             req,
-            r#"{"type":"pong","version":"0.8.2","protocol":20,"capabilities":{}}"#,
+            r#"{"type":"pong","version":"0.9.0","protocol":22,"capabilities":{}}"#,
         )
     });
     let mut c = HerdrClient::connect(&path).unwrap();

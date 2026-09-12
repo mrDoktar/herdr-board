@@ -13,7 +13,8 @@
 //!   [`HerdrEvent`]s via `events.subscribe`.
 //!
 //! Method and field names are verified against `herdr api schema --json`
-//! (Herdr 0.8.2, protocol 20), captured in `tests/fixtures/schema.json`.
+//! (Herdr 0.9.0, protocol 22), captured in `docs/herdr-0.9.0-schema.json`
+//! (legacy fixture at `tests/fixtures/schema.json` is protocol 20).
 
 mod client;
 mod envelope;
@@ -24,9 +25,9 @@ mod transport;
 mod types;
 
 /// The only Herdr release supported by this client.
-pub const SUPPORTED_HERDR_VERSION: &str = "0.8.2";
+pub const SUPPORTED_HERDR_VERSION: &str = "0.9.0";
 /// The only Herdr socket protocol supported by this client.
-pub const SUPPORTED_HERDR_PROTOCOL: u32 = 20;
+pub const SUPPORTED_HERDR_PROTOCOL: u32 = 22;
 
 pub use client::HerdrClient;
 pub use envelope::{ErrorBody, Request, Response};
