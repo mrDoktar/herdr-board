@@ -145,7 +145,7 @@ class DocumentationContractTests(unittest.TestCase):
         for surface, expected in (
             ("Board socket", "v1;"),
             ("SQLite", "schema v15"),
-            ("Herdr client", "0.8.2 / socket protocol 20"),
+            ("Herdr client", "0.9.0 / socket protocol 22"),
             ("Herdr integrations", "Pi v8; Claude v7"),
             ("Runtime launch", "daemon-owned"),
             ("Config", "typed `RootConfig`"),
