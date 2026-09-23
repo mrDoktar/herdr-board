@@ -109,13 +109,50 @@ else:
   fi
 fi
 
+# With a tab placement, a repeat press goes back to the tab you came from, so
+# one key both shows and hides the board (herdr has no "previous tab"
+# command). The tab is remembered here whenever the board is shown.
+return_tab_file="${TMPDIR:-/tmp}/herdr-board-return-tab"
+
+# The tab holding the focused pane (empty when unknown).
+focused_tab_id() {
+  command -v python3 >/dev/null 2>&1 || return 0
+  "$herdr_bin" pane list 2>/dev/null | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+res = data.get("result", data)
+for p in (res.get("panes", []) if isinstance(res, dict) else []):
+    if p.get("focused"):
+        print(p.get("tab_id") or ""); break
+' 2>/dev/null
+}
+
+remember_return_tab() {
+  local tab
+  tab="$(focused_tab_id)"
+  [ -n "$tab" ] && printf '%s' "$tab" >"$return_tab_file" 2>/dev/null
+  return 0
+}
+
 focus_pane() {  # focus_pane <pane_id> <tab_id|->
   if [ "$2" != "-" ]; then "$herdr_bin" tab focus "$2" >/dev/null 2>&1; fi
   exec "$herdr_bin" plugin pane focus "$1"
 }
 
-# A repeat press only closes an overlay; a tab, split or zoomed board just stays focused.
+# A repeat press closes an overlay. A tab goes back to the tab you came from;
+# a split or zoomed board just stays focused.
+if [ "$placement" = "tab" ] && [ "${decision%% *}" = "CLOSE" ]; then
+  board_tab="${decision##* }"
+  back="$(cat "$return_tab_file" 2>/dev/null || true)"
+  if [ -n "$back" ] && [ "$back" != "$board_tab" ] && "$herdr_bin" tab focus "$back" >/dev/null 2>&1; then
+    exit 0
+  fi
+fi
 if [ "$placement" != "overlay" ]; then decision="${decision/#CLOSE /FOCUS }"; fi
+[ "${decision%% *}" = "CLOSE" ] || remember_return_tab
 
 case "$decision" in
   "FOCUS "*)
