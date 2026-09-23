@@ -33,18 +33,24 @@ fn is_issue_url(word: &str) -> bool {
 
 /// Changes an issue on GitHub.
 pub trait IssueAssigner {
-    /// Add the signed-in GitHub user to the issue's assignees.
-    fn assign_to_me(&self, issue_url: &str) -> anyhow::Result<()>;
+    /// Add the signed-in GitHub user to the issue's assignees (`assign`), or
+    /// remove them.
+    fn set_me_assigned(&self, issue_url: &str, assign: bool) -> anyhow::Result<()>;
 }
 
-/// Production assigner: `gh issue edit <url> --add-assignee @me`. Blocks
-/// until `gh` returns (about a second).
+/// Production assigner: `gh issue edit <url> --add-assignee @me` (or
+/// `--remove-assignee`). Blocks until `gh` returns (about a second).
 pub struct GhCli;
 
 impl IssueAssigner for GhCli {
-    fn assign_to_me(&self, issue_url: &str) -> anyhow::Result<()> {
+    fn set_me_assigned(&self, issue_url: &str, assign: bool) -> anyhow::Result<()> {
+        let flag = if assign {
+            "--add-assignee"
+        } else {
+            "--remove-assignee"
+        };
         let out = std::process::Command::new("gh")
-            .args(["issue", "edit", issue_url, "--add-assignee", "@me"])
+            .args(["issue", "edit", issue_url, flag, "@me"])
             .stdin(std::process::Stdio::null())
             .output()
             .context("could not run gh")?;

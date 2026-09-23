@@ -1,5 +1,5 @@
-//! `A` in an open GitHub issue card assigns the issue to you on GitHub and
-//! tags the card `mine`, so the Todo `Mine` filter shows it straight away.
+//! `A` in an open GitHub issue card toggles you as the issue's assignee on
+//! GitHub and the card's `mine` tag, so the Todo `Mine` filter follows at once.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -14,19 +14,21 @@ use crossterm::event::KeyCode;
 
 const ISSUE_URL: &str = "https://github.com/acme/app/issues/42";
 
-/// Records every issue it is asked to assign; fails when `error` is set.
+/// Records every call as `(issue url, assign)`; fails when `error` is set.
 #[derive(Clone, Default)]
 struct FakeAssigner {
-    assigned: Rc<RefCell<Vec<String>>>,
+    calls: Rc<RefCell<Vec<(String, bool)>>>,
     error: Option<String>,
 }
 
 impl IssueAssigner for FakeAssigner {
-    fn assign_to_me(&self, issue_url: &str) -> anyhow::Result<()> {
+    fn set_me_assigned(&self, issue_url: &str, assign: bool) -> anyhow::Result<()> {
         if let Some(error) = &self.error {
             anyhow::bail!("{error}");
         }
-        self.assigned.borrow_mut().push(issue_url.to_string());
+        self.calls
+            .borrow_mut()
+            .push((issue_url.to_string(), assign));
         Ok(())
     }
 }
@@ -81,20 +83,39 @@ fn assigns_the_issue_and_tags_the_card_mine() {
 
     d.handle(key(KeyCode::Char('A')));
 
-    assert_eq!(*assigner.assigned.borrow(), [ISSUE_URL]);
+    assert_eq!(*assigner.calls.borrow(), [(ISSUE_URL.to_string(), true)]);
     assert_eq!(tags_of(&d), ["github", "mine", "ready-for-agent"]);
     assert_eq!(toast(&d), "issue assigned to you");
 }
 
 #[test]
-fn an_issue_already_yours_is_left_alone() {
+fn an_issue_already_yours_is_unassigned_and_loses_mine() {
     let assigner = FakeAssigner::default();
-    let (mut d, _) = open_card(&["github", "mine"], &assigner);
+    let (mut d, _) = open_card(&["github", "mine", "ready-for-agent"], &assigner);
 
     d.handle(key(KeyCode::Char('A')));
 
-    assert!(assigner.assigned.borrow().is_empty());
-    assert_eq!(toast(&d), "already assigned to you");
+    assert_eq!(*assigner.calls.borrow(), [(ISSUE_URL.to_string(), false)]);
+    assert_eq!(tags_of(&d), ["github", "ready-for-agent"]);
+    assert_eq!(toast(&d), "issue unassigned from you");
+}
+
+#[test]
+fn pressing_a_twice_assigns_then_unassigns() {
+    let assigner = FakeAssigner::default();
+    let (mut d, _) = open_card(&["github"], &assigner);
+
+    d.handle(key(KeyCode::Char('A')));
+    d.handle(key(KeyCode::Char('A')));
+
+    assert_eq!(
+        *assigner.calls.borrow(),
+        [
+            (ISSUE_URL.to_string(), true),
+            (ISSUE_URL.to_string(), false)
+        ]
+    );
+    assert_eq!(tags_of(&d), ["github"]);
 }
 
 #[test]
@@ -104,7 +125,7 @@ fn a_card_not_made_from_an_issue_is_refused() {
 
     d.handle(key(KeyCode::Char('A')));
 
-    assert!(assigner.assigned.borrow().is_empty());
+    assert!(assigner.calls.borrow().is_empty());
     assert_eq!(toast(&d), "not a GitHub issue card");
 }
 
