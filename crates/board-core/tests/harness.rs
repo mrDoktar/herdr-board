@@ -35,8 +35,8 @@ fn pi_settings() -> EffectiveSettings {
 }
 
 #[test]
-fn builtin_registry_is_pi_first() {
-    assert_eq!(DEFAULT_HARNESS, "pi");
+fn builtin_registry_defaults_to_claude() {
+    assert_eq!(DEFAULT_HARNESS, "claude");
     assert!(is_builtin_harness("pi"));
     assert!(is_builtin_harness("claude"));
     assert!(!is_builtin_harness("fake"));

@@ -687,21 +687,21 @@ fn card_new_new_workspace_missing_cwd_is_validation_error() {
 }
 
 #[test]
-fn card_new_defaults_to_pi_and_claude_remains_explicit() {
+fn card_new_defaults_to_claude_and_pi_remains_explicit() {
     let td = TestDaemon::start(&[]);
-    let pi = json_output(&td.board(&["card", "new", "--title", "default", "--json"]));
-    assert_eq!(pi["harness"], "pi");
+    let claude = json_output(&td.board(&["card", "new", "--title", "default", "--json"]));
+    assert_eq!(claude["harness"], "claude");
 
-    let claude = json_output(&td.board(&[
+    let pi = json_output(&td.board(&[
         "card",
         "new",
         "--title",
         "explicit",
         "--harness",
-        "claude",
+        "pi",
         "--json",
     ]));
-    assert_eq!(claude["harness"], "claude");
+    assert_eq!(pi["harness"], "pi");
 }
 
 #[test]
@@ -712,6 +712,8 @@ fn card_new_rejects_pi_permission_mode() {
         "new",
         "--title",
         "bad",
+        "--harness",
+        "pi",
         "--permission",
         "acceptEdits",
     ]);

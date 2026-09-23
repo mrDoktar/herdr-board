@@ -379,7 +379,7 @@ fn duplicate_card_at_column_end_appends_and_last_duplicate_is_idempotent_per_row
 }
 
 #[test]
-fn default_card_harness_is_pi() {
+fn default_card_harness_is_claude() {
     let db = mem();
     let card = db
         .create_card(&CardCreateParams {
@@ -388,7 +388,7 @@ fn default_card_harness_is_pi() {
         })
         .unwrap();
     assert_eq!(card.column_id, db.default_column_id(BOARD_ID).unwrap());
-    assert_eq!(card.harness, "pi");
+    assert_eq!(card.harness, "claude");
     assert_eq!(card.space_kind, SpaceKind::Workspace);
 }
 
