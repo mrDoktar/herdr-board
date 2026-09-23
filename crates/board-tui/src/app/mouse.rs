@@ -94,14 +94,6 @@ pub(super) fn on_mouse(app: &mut App, m: MouseEvent) -> Vec<Effect> {
                 app.last_click = Some((m.column, m.row, app.now_ms));
                 if dbl {
                     if let Some(id) = app.selected_card_id() {
-                        // Ctrl/Alt+double-click jumps to the AI console like
-                        // `o`. Alt too, because macOS terminals often turn
-                        // Ctrl+click into a right click.
-                        if m.modifiers
-                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
-                        {
-                            return vec![Effect::FocusLatestRun(id)];
-                        }
                         return app.open_detail(id);
                     }
                 }
@@ -224,6 +216,9 @@ fn handle_zone(app: &mut App, zone: Zone) -> Option<Vec<Effect>> {
         // as an explicit no-op so stale callers fail closed instead of
         // falling through to card-body drag/focus handling.
         Zone::CardAction { .. } if app.screen == Screen::Board => Some(vec![]),
+        Zone::CardConsole(id) if app.screen == Screen::Board => {
+            Some(vec![Effect::FocusLatestRun(id)])
+        }
         Zone::Action(action) => {
             // Card-level Edit must not inherit Comments focus, where the `e`
             // reducer intentionally edits the selected comment instead. Route

@@ -503,6 +503,36 @@ fn draw_compact_header(app: &App, f: &mut Frame, header: &CompactHeader) {
     render_button_chip_at(f, header.next, "›", &mut hit_map, Zone::HeaderNext);
 }
 
+/// A `[▶]` on the top border of a card that has run: one click jumps to its
+/// AI console, like `o` (a modifier+click would not survive the terminal).
+fn draw_console_button(app: &App, f: &mut Frame, card: &Card, r: Rect, background: Color) {
+    let has_run = matches!(
+        card.status,
+        CardStatus::Running
+            | CardStatus::Blocked
+            | CardStatus::Failed
+            | CardStatus::Awaiting
+            | CardStatus::Done
+    );
+    if card.archived_at.is_some() || !has_run || r.width < 10 {
+        return;
+    }
+    let button = Rect::new(r.x + r.width - 5, r.y, 3, 1);
+    f.render_widget(
+        Paragraph::new(Span::styled(
+            "[▶]",
+            Style::default()
+                .fg(Color::LightGreen)
+                .bg(background)
+                .add_modifier(Modifier::BOLD),
+        )),
+        button,
+    );
+    app.hit_map
+        .borrow_mut()
+        .push(button, Zone::CardConsole(card.id));
+}
+
 fn draw_card(app: &App, f: &mut Frame, card: &Card, r: Rect, selected: bool, compact: bool) {
     let archived = card.archived_at.is_some();
     let (glyph, color) = if archived {
@@ -531,6 +561,7 @@ fn draw_card(app: &App, f: &mut Frame, card: &Card, r: Rect, selected: bool, com
     if inner.is_empty() {
         return;
     }
+    draw_console_button(app, f, card, r, background);
 
     let status_text = if archived {
         "archived".to_string()

@@ -228,7 +228,7 @@ pub const HELP_KEYS: &[(Screen, &str, &str)] = &[
     (Screen::Board, "H / L", "shove card left / right"),
     (Screen::Board, "Enter", "card detail"),
     (Screen::Board, "o / C-Enter", "jump to AI console"),
-    (Screen::Board, "C/A-dblclk", "AI console (mouse)"),
+    (Screen::Board, "click [▶]", "AI console (mouse)"),
     (Screen::Board, "T", "apply template (empty)"),
     (Screen::Board, "r / R", "refresh board"),
     (Screen::Board, "?", "this help (any screen)"),

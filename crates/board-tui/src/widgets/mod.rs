@@ -154,6 +154,9 @@ pub enum Zone {
     CommentDelete,
     /// Card detail comments action bar: view the focused comment's history.
     CommentHistory,
+    /// The `▶` on a board card that has run: jump to its AI console (the
+    /// newest run's Herdr pane), by card id.
+    CardConsole(i64),
 }
 
 /// Rects registered during the current frame's draw, consulted by the mouse
