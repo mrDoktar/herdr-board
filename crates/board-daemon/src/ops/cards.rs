@@ -424,6 +424,7 @@ pub(super) fn card_move(d: &Arc<Daemon>, p: CardMoveParams) -> Result<Value> {
     if enqueue {
         d.wake_dispatch();
     }
+    d.card_entered(card.id, target.board_id, &target);
     stamp_card_labels(d, &mut card);
     Ok(json!(card))
 }

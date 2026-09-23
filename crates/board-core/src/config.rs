@@ -80,6 +80,13 @@ pub struct Config {
     /// Seconds an agent may sit idle (no `board done`) before it is parked awaiting review.
     #[serde(default = "default_idle_grace_seconds")]
     pub idle_grace_seconds: u64,
+    /// Shell commands keyed by column name (`[on_enter]`). When a card lands in
+    /// a column with that name (any board, name matched case-insensitively),
+    /// by hand or by an `on_success`/`on_fail` transition, the daemon runs the
+    /// command with `sh -c` and does not wait for it. The command gets
+    /// `BOARD_CARD_ID`, `BOARD_BOARD_ID`, `BOARD_COLUMN` and `BOARD_BIN`.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub on_enter: HashMap<String, String>,
     /// Config-defined harnesses keyed by name (`[harness.NAME]`).
     #[serde(default)]
     pub harness: HashMap<String, HarnessDef>,
@@ -158,6 +165,7 @@ impl Default for Config {
             max_concurrent: default_max_concurrent(),
             serial_per_space: default_serial_per_space(),
             idle_grace_seconds: default_idle_grace_seconds(),
+            on_enter: HashMap::new(),
             harness: HashMap::new(),
             pi_agent_dir: None,
             codex_home: None,

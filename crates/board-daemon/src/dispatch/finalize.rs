@@ -83,7 +83,7 @@ fn finalize_run_inner(
 ) -> Result<Option<(Run, Card)>> {
     // Scheduler -> store is the sole lock order. The complete durable outcome
     // is committed while both locks are held; all external effects follow it.
-    let (removed, effects, notify) = {
+    let (removed, effects, notify, entered) = {
         let mut sched = d.sched.lock().unwrap();
         let db = d.store.lock();
         let existing = db.get_run(run_id)?;
@@ -122,6 +122,7 @@ fn finalize_run_inner(
         let mut next = None;
         let mut next_hops = None;
         let mut notify = None;
+        let mut entered = None;
         if transition {
             let current = db.require_column(existing.column_id)?;
             let cols = db.list_columns(card.board_id)?;
@@ -131,6 +132,9 @@ fn finalize_run_inner(
             final_status = dec.new_status;
             if let Some(target_id) = dec.target_column_id {
                 card.column_id = target_id;
+                if target_id != existing.column_id {
+                    entered = cols.iter().find(|c| c.id == target_id).cloned();
+                }
                 if dec.enqueue {
                     // Archived destination backstop: if the card or its
                     // target board/project is archived, do not auto-enqueue.
@@ -207,7 +211,7 @@ fn finalize_run_inner(
         }
         #[cfg(test)]
         d.record_effect("scheduler");
-        (removed, effects, notify)
+        (removed, effects, notify, entered)
     };
 
     // Post-commit effects are deliberately ordered and contain no DB writes.
@@ -233,6 +237,9 @@ fn finalize_run_inner(
         "run finalized"
     );
     d.emit_run_ended(effects.card.id, run_id, outcome);
+    if let Some(column) = &entered {
+        d.card_entered(effects.card.id, effects.card.board_id, column);
+    }
     d.wake_dispatch();
     Ok(Some((effects.finished_run, effects.card)))
 }

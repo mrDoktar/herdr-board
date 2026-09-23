@@ -9,6 +9,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::spawner::{RuntimeHandle, Spawner};
 use board_core::config::Config;
+use board_core::model::Column;
 use board_core::protocol::{BoardChangedReason, Event, RunOutcome};
 use board_herdr::{HerdrClient, HerdrError, NotificationSound};
 use std::sync::Arc;
@@ -17,6 +18,43 @@ use tokio::sync::{broadcast, mpsc, watch, Mutex as AsyncMutex};
 use crate::session::SessionRegistry;
 use crate::settings::DaemonSettings;
 use crate::store::Store;
+
+/// Run one `[on_enter]` command to completion, appending its output to
+/// `on-enter.log` in `log_dir`, and trace its exit status.
+pub(crate) fn run_on_enter(
+    command: &str,
+    log_dir: &std::path::Path,
+    card_id: i64,
+    board_id: i64,
+    column: &str,
+) -> std::io::Result<()> {
+    use std::io::Write;
+    let dir = log_dir;
+    std::fs::create_dir_all(dir)?;
+    let mut log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("on-enter.log"))?;
+    writeln!(log, "== card {card_id} entered {column}: {command}")?;
+    let mut cmd = std::process::Command::new("sh");
+    cmd.arg("-c")
+        .arg(command)
+        .env("BOARD_CARD_ID", card_id.to_string())
+        .env("BOARD_BOARD_ID", board_id.to_string())
+        .env("BOARD_COLUMN", column)
+        .stdin(std::process::Stdio::null())
+        .stdout(log.try_clone()?)
+        .stderr(log.try_clone()?);
+    if let Ok(exe) = std::env::current_exe() {
+        cmd.env("BOARD_BIN", exe);
+    }
+    let status = cmd.status()?;
+    if !status.success() {
+        writeln!(log, "== card {card_id}: exited with {status}")?;
+        tracing::warn!(card_id, column, %status, "on_enter command failed");
+    }
+    Ok(())
+}
 
 fn herdr_error_category(error: &HerdrError) -> &'static str {
     match error {
@@ -272,6 +310,41 @@ impl Daemon {
             outcome,
         });
         self.emit_changed(BoardChangedReason::RunEnded, Some(card_id), None);
+    }
+
+    /// A card just landed in `column` (moved by hand or by a transition): run
+    /// the `[on_enter]` command configured for that column name, if any.
+    /// Detached: the move never waits for it and never fails because of it.
+    /// Output goes to `on-enter.log` in the log directory.
+    pub fn card_entered(&self, card_id: i64, board_id: i64, column: &Column) {
+        let Some(command) = self
+            .config
+            .on_enter
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(&column.name))
+            .map(|(_, command)| command.clone())
+        else {
+            return;
+        };
+        // Tests record the effect only: no process, no write to the real log dir.
+        #[cfg(test)]
+        {
+            let _ = (card_id, board_id, command);
+            self.record_effect("on_enter");
+        }
+        #[cfg(not(test))]
+        self.spawn_on_enter(command, card_id, board_id, column);
+    }
+
+    #[cfg(not(test))]
+    fn spawn_on_enter(&self, command: String, card_id: i64, board_id: i64, column: &Column) {
+        let column_name = column.name.clone();
+        std::thread::spawn(move || {
+            let log_dir = board_core::paths::log_dir();
+            if let Err(error) = run_on_enter(&command, &log_dir, card_id, board_id, &column_name) {
+                tracing::warn!(card_id, column = %column_name, %error, "on_enter command failed to start");
+            }
+        });
     }
 
     /// Wake the dispatcher to (re)evaluate the queue.

@@ -352,3 +352,62 @@ fn scoped_run_transition_uses_the_cards_board_columns() {
     assert_eq!(moved.board_id, card.board_id);
     assert_eq!(moved.column_id, target.id);
 }
+
+#[test]
+fn a_transition_into_a_column_with_an_on_enter_command_runs_it() {
+    let config = Config {
+        on_enter: [("Done".to_string(), "true".to_string())].into(),
+        ..Config::default()
+    };
+    let (d, _, _) = test_daemon_with_config(Arc::new(MissingPiSpawner), config);
+    let run = {
+        let db = d.store.lock();
+        let auto = db
+            .create_column(&ColumnCreateParams {
+                name: "Release".into(),
+                trigger: Some(Trigger::Auto),
+                ..Default::default()
+            })
+            .unwrap();
+        let done = db
+            .create_column(&ColumnCreateParams {
+                name: "Done".into(),
+                ..Default::default()
+            })
+            .unwrap();
+        db.update_column(&ColumnUpdateParams {
+            id: auto.id,
+            on_success_column_id: Patch::Set(done.id),
+            ..Default::default()
+        })
+        .unwrap();
+        let card = db
+            .create_card(&CardCreateParams {
+                column_id: Some(auto.id),
+                title: "released".into(),
+                ..Default::default()
+            })
+            .unwrap();
+        let run = db
+            .enqueue_run_uow(&EnqueueRun {
+                card_id: card.id,
+                column_id: auto.id,
+                harness: "pi",
+                argv_json: "[]",
+                prompt_snapshot: "p",
+                system_prompt_snapshot: None,
+                launch_spec_json: None,
+                session_id: None,
+                session: None,
+            })
+            .unwrap();
+        db.promote_run_uow(run.id, None, None, None).unwrap();
+        run
+    };
+    let effects = Arc::new(Mutex::new(Vec::new()));
+    *d.effect_log.lock().unwrap() = Some(effects.clone());
+
+    finalize_run(&d, run.id, RunOutcome::Ok, None, None, false, true).unwrap();
+
+    assert!(effects.lock().unwrap().contains(&"on_enter"));
+}

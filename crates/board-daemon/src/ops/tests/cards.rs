@@ -719,3 +719,103 @@ fn card_move_same_column_clamps_position_and_compacts() {
         .collect();
     assert_eq!(positions, vec![0, 1, 2]);
 }
+
+// --- [on_enter] column commands ---
+
+fn on_enter_config(column: &str, command: &str) -> Config {
+    Config {
+        on_enter: [(column.to_string(), command.to_string())].into(),
+        ..Config::default()
+    }
+}
+
+fn record_effects(d: &Arc<Daemon>) -> Arc<Mutex<Vec<&'static str>>> {
+    let effects = Arc::new(Mutex::new(Vec::new()));
+    *d.effect_log.lock().unwrap() = Some(effects.clone());
+    effects
+}
+
+fn column_named(d: &Arc<Daemon>, name: &str) -> i64 {
+    d.store
+        .lock()
+        .create_column(&ColumnCreateParams {
+            name: name.into(),
+            ..Default::default()
+        })
+        .unwrap()
+        .id
+}
+
+#[test]
+fn moving_a_card_into_a_column_with_an_on_enter_command_runs_it() {
+    let d = test_daemon(on_enter_config("done", "true"));
+    let done = column_named(&d, "Done");
+    let created = handle_request(&d, "card.create", json!({ "title": "finished" })).unwrap();
+    let effects = record_effects(&d);
+
+    handle_request(
+        &d,
+        "card.move",
+        json!({ "id": created["id"], "column_id": done }),
+    )
+    .unwrap();
+
+    assert!(effects.lock().unwrap().contains(&"on_enter"));
+}
+
+#[test]
+fn moving_a_card_into_a_column_without_an_on_enter_command_runs_nothing() {
+    let d = test_daemon(on_enter_config("Done", "true"));
+    let review = column_named(&d, "Review");
+    let created = handle_request(&d, "card.create", json!({ "title": "in review" })).unwrap();
+    let effects = record_effects(&d);
+
+    handle_request(
+        &d,
+        "card.move",
+        json!({ "id": created["id"], "column_id": review }),
+    )
+    .unwrap();
+
+    assert!(!effects.lock().unwrap().contains(&"on_enter"));
+}
+
+#[test]
+fn reordering_a_card_inside_its_column_does_not_run_on_enter() {
+    let d = test_daemon(on_enter_config("Done", "true"));
+    let done = column_named(&d, "Done");
+    let created = handle_request(
+        &d,
+        "card.create",
+        json!({ "title": "already done", "column_id": done }),
+    )
+    .unwrap();
+    let effects = record_effects(&d);
+
+    handle_request(
+        &d,
+        "card.move",
+        json!({ "id": created["id"], "column_id": done, "position": 0 }),
+    )
+    .unwrap();
+
+    assert!(!effects.lock().unwrap().contains(&"on_enter"));
+}
+
+#[test]
+fn on_enter_command_gets_the_card_board_and_column_and_logs_its_output() {
+    let logs = tempfile::tempdir().unwrap();
+
+    crate::state::run_on_enter(
+        "echo \"$BOARD_CARD_ID $BOARD_BOARD_ID $BOARD_COLUMN\"; exit 3",
+        logs.path(),
+        6,
+        2,
+        "Done",
+    )
+    .unwrap();
+
+    let log = std::fs::read_to_string(logs.path().join("on-enter.log")).unwrap();
+    assert!(log.contains("6 2 Done\n"), "{log}");
+    assert!(log.contains("card 6: exited with"), "{log}");
+}

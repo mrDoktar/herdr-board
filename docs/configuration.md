@@ -32,6 +32,20 @@ launch per space starts in a dispatch pass; the next pass starts the rest. Turn 
 every card works in its own checkout (for example a per-card git worktree), since two agents in one
 working tree will overwrite each other.
 
+`[on_enter]` runs a shell command when a card lands in a column, keyed by column name (any board,
+case-insensitive). It fires for a move by hand (TUI or `board move`) and for an `on_success`/`on_fail`
+transition, never for a reorder inside the column. The daemon runs it with `sh -c`, does not wait for
+it, and appends its output to `on-enter.log` in the log directory. The command gets
+`BOARD_CARD_ID`, `BOARD_BOARD_ID`, `BOARD_COLUMN` and `BOARD_BIN` (the daemon's own `board`):
+
+```toml
+[on_enter]
+Done = 'bash ~/Code/herdr-board/scripts/done-cleanup.sh card "$BOARD_CARD_ID"'
+```
+
+`scripts/done-cleanup.sh` stops the card's test server, closes its agent tab and its own
+workspace, and removes its worktree (the branch stays).
+
 Custom harness prompts are delivered through `$BOARD_PROMPT`. The placeholders `{model}`, `{effort}`,
 and `{permission_mode}` are available in `argv`. Optional keys `models`, `efforts`, and
 `permission_modes` declare the harness's capability catalog.

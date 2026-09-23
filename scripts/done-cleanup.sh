@@ -16,8 +16,8 @@
 #      and the tag `worktree-kept`.
 #
 # Cards with a queued or running run are skipped. --column defaults to Done.
-# Runs on a timer (launchd dev.herdr-board.done-cleanup), so a card dragged to
-# Done by hand is cleaned within a minute too.
+# The daemon runs `card "$BOARD_CARD_ID"` the moment a card enters Done, through
+# `[on_enter] Done = ...` in config.toml. The sweep form catches anything older.
 set -euo pipefail
 
 board_bin="${BOARD_BIN:-board}"
