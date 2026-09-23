@@ -154,6 +154,9 @@ pub fn merge_card_update(current: &Card, update: &CardUpdateParams) -> Card {
     }
     apply_patch(&mut merged.space_ref, &update.space_ref);
     apply_patch(&mut merged.space_cwd, &update.space_cwd);
+    if let Some(tags) = &update.tags {
+        merged.tags = crate::model::normalize_tags(tags);
+    }
     merged
 }
 

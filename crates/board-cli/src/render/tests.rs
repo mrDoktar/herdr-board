@@ -108,6 +108,7 @@ fn card_lists_render_one_aligned_row_per_card() {
         updated_at: "2026-01-01 00:00:00".into(),
         archived_at: None,
         labels: board_core::protocol::CardLabels::default(),
+        tags: Vec::new(),
     }];
     let mut out = Vec::new();
     cards.render(&mut out).expect("cards render");

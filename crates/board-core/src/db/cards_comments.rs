@@ -133,8 +133,8 @@ impl Db {
         self.conn.execute(
             "INSERT INTO cards
              (board_id,column_id,position,title,description,harness,model,effort,permission_mode,
-              session,space_kind,space_ref,space_cwd,status,session_id)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,'idle',NULL)",
+              session,space_kind,space_ref,space_cwd,tags,status,session_id)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,'idle',NULL)",
             params![
                 board_id,
                 column_id,
@@ -149,6 +149,7 @@ impl Db {
                 space_kind,
                 p.space_ref,
                 p.space_cwd,
+                tags_json(p.tags.as_deref().unwrap_or_default()),
             ],
         )?;
         let id = self.conn.last_insert_rowid();
@@ -199,8 +200,8 @@ impl Db {
         tx.execute(
             "INSERT INTO cards
              (board_id,column_id,position,title,description,harness,model,effort,permission_mode,
-              session,space_kind,space_ref,space_cwd,status,session_id)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,'idle',NULL)",
+              session,space_kind,space_ref,space_cwd,tags,status,session_id)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,'idle',NULL)",
             params![
                 board_id,
                 column_id,
@@ -215,6 +216,7 @@ impl Db {
                 space_kind,
                 p.space_ref,
                 p.space_cwd,
+                tags_json(p.tags.as_deref().unwrap_or_default()),
             ],
         )?;
         let card_id = tx.last_insert_rowid();
@@ -246,8 +248,8 @@ impl Db {
         tx.execute(
             "INSERT INTO cards
              (board_id,column_id,position,title,description,harness,model,effort,permission_mode,
-              session,space_kind,space_ref,space_cwd,status,session_id)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,'idle',NULL)",
+              session,space_kind,space_ref,space_cwd,tags,status,session_id)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,'idle',NULL)",
             params![
                 card.board_id,
                 card.column_id,
@@ -262,6 +264,7 @@ impl Db {
                 card.space_kind.as_str(),
                 card.space_ref,
                 card.space_cwd,
+                tags_json(&card.tags),
             ],
         )?;
         let copy_id = tx.last_insert_rowid();
@@ -321,10 +324,13 @@ impl Db {
             Patch::Clear => c.space_cwd = None,
             Patch::Set(v) => c.space_cwd = Some(v.clone()),
         }
+        if let Some(tags) = &p.tags {
+            c.tags = tags.clone();
+        }
         self.conn.execute(
             "UPDATE cards SET title=?1,description=?2,harness=?3,model=?4,effort=?5,
              permission_mode=?6,session=?7,space_kind=?8,space_ref=?9,space_cwd=?10,
-             updated_at=datetime('now') WHERE id=?11",
+             tags=?11,updated_at=datetime('now') WHERE id=?12",
             params![
                 c.title,
                 c.description,
@@ -336,6 +342,7 @@ impl Db {
                 c.space_kind.as_str(),
                 c.space_ref,
                 c.space_cwd,
+                tags_json(&c.tags),
                 c.id,
             ],
         )?;
@@ -776,4 +783,9 @@ impl Db {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
+}
+
+/// The stored form of a tag set: its [`normalize_tags`] JSON array.
+fn tags_json(tags: &[String]) -> String {
+    serde_json::to_string(&crate::model::normalize_tags(tags)).expect("a string list serializes")
 }

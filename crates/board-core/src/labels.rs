@@ -112,6 +112,7 @@ mod tests {
             updated_at: String::new(),
             archived_at: None,
             labels: CardLabels::default(),
+            tags: Vec::new(),
         }
     }
 

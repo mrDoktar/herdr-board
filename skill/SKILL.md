@@ -111,11 +111,11 @@ The `pipeline` template is atomic and only applies to an empty board containing 
 board card create --title TITLE [-d DESCRIPTION] [--column COLUMN] \
   [--harness HARNESS] [--model MODEL] [--effort EFFORT] [--permission MODE] \
   [--session SESSION] [--space-kind workspace|new-workspace] \
-  [--space-ref REF] [--space-cwd DIR] [--json]
+  [--space-ref REF] [--space-cwd DIR] [--tag TAG]... [--json]
 board card edit ID [--title TITLE] [-d DESCRIPTION] [--clear-description] \
   [--harness HARNESS] [--model MODEL|--clear-model] [--effort EFFORT|--clear-effort] \
   [--permission MODE|--clear-permission] [--session SESSION|--clear-session] \
-  [--space-ref REF|--clear-space-ref] [--space-cwd DIR|--clear-space-cwd] [--json]
+  [--space-ref REF|--clear-space-ref] [--space-cwd DIR|--clear-space-cwd] [--tag TAG]...|--clear-tags [--json]
 board card show ID [--json]
 board card list [--column COLUMN] [--visibility active|all|archived] [--json]
 board card move ID COLUMN [--position ZERO_BASED_POSITION] [--destination-board ID|PATH] [--to-project PATH --to-board NAME|ID] [--json]

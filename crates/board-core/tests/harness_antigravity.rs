@@ -557,6 +557,7 @@ fn card_with(
         updated_at: String::new(),
         archived_at: None,
         labels: board_core::protocol::CardLabels::default(),
+        tags: Vec::new(),
     }
 }
 

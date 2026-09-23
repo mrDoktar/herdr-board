@@ -38,6 +38,7 @@ pub(crate) fn cmd_card(sub: CardCmd, ctx: &mut Ctx) -> Result<()> {
             space_kind,
             space_ref,
             space_cwd,
+            tags,
         } => {
             let column_id = ctx.optional_column_id(column.as_deref())?;
             let p = CardCreateParams {
@@ -54,6 +55,7 @@ pub(crate) fn cmd_card(sub: CardCmd, ctx: &mut Ctx) -> Result<()> {
                 space_ref,
                 space_cwd,
                 position: None,
+                tags: (!tags.is_empty()).then_some(tags),
             };
             let card = ctx.client()?.card_create(&p)?;
             emit_line(
@@ -85,6 +87,8 @@ pub(crate) fn cmd_card(sub: CardCmd, ctx: &mut Ctx) -> Result<()> {
             clear_space_ref,
             space_cwd,
             clear_space_cwd,
+            tags,
+            clear_tags,
         } => {
             if clear_harness {
                 bail!("--clear-harness is not supported: harness is required")
@@ -105,6 +109,11 @@ pub(crate) fn cmd_card(sub: CardCmd, ctx: &mut Ctx) -> Result<()> {
                 space_kind: space_kind.as_deref().map(parse_space_kind).transpose()?,
                 space_ref: Patch::from_flags(clear_space_ref, space_ref),
                 space_cwd: Patch::from_flags(clear_space_cwd, space_cwd),
+                tags: if clear_tags {
+                    Some(Vec::new())
+                } else {
+                    (!tags.is_empty()).then_some(tags)
+                },
             };
             let card = ctx.client()?.card_update(&p)?;
             emit_line(&card, json, format!("Updated card #{}", card.id))

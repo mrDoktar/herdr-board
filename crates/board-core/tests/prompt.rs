@@ -78,6 +78,7 @@ fn base_card() -> Card {
         updated_at: "t".into(),
         archived_at: None,
         labels: board_core::protocol::CardLabels::default(),
+        tags: Vec::new(),
     }
 }
 

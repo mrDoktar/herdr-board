@@ -42,6 +42,7 @@ fn card() -> Card {
         updated_at: "now".into(),
         archived_at: None,
         labels: board_core::protocol::CardLabels::default(),
+        tags: Vec::new(),
     }
 }
 

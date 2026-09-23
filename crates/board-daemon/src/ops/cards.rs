@@ -63,6 +63,7 @@ fn pending_create_card(db: &Db, p: &CardCreateParams) -> Result<Card> {
         archived_at: None,
         // Stamped daemon-side with resolved display labels at serve time.
         labels: board_core::protocol::CardLabels::default(),
+        tags: board_core::model::normalize_tags(p.tags.as_deref().unwrap_or_default()),
     })
 }
 

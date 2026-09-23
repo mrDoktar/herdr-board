@@ -685,6 +685,9 @@ pub struct CardCreateParams {
     pub space_cwd: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position: Option<i64>,
+    /// Free-form tags; stored normalized (trimmed, sorted, deduplicated).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
 }
 
 /// `card.update` params — any subset; `id` required.
@@ -713,6 +716,10 @@ pub struct CardUpdateParams {
     /// Working directory for a `new_workspace` space.
     #[serde(default, skip_serializing_if = "Patch::is_unchanged")]
     pub space_cwd: Patch<String>,
+    /// Replaces the whole tag set (`[]` clears it). Allowed at any card
+    /// status, including while a run is open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
 }
 
 /// `card.archive` params — archive (`true`) or restore (`false`) a card.

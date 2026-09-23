@@ -1,8 +1,8 @@
 use super::{arm_fault, mem};
 use board_core::db::{Db, EnqueueRun, FinalizeRun, BOARD_ID};
 use board_core::protocol::{
-    AwaitingReason, CardCreateParams, CardStatus, ColumnCreateParams, ColumnUpdateParams, Effort,
-    Patch, RunOutcome, SpaceKind, Trigger,
+    AwaitingReason, CardCreateParams, CardStatus, CardUpdateParams, ColumnCreateParams,
+    ColumnUpdateParams, Effort, Patch, RunOutcome, SpaceKind, Trigger,
 };
 use rusqlite::Connection;
 
@@ -1126,4 +1126,75 @@ fn a_non_unique_constraint_failure_is_still_an_internal_error() {
         matches!(&err, board_core::Error::Sqlite(_)),
         "a trigger abort must stay a storage error, got {err:?}"
     );
+}
+
+fn tags(values: &[&str]) -> Vec<String> {
+    values.iter().map(|v| v.to_string()).collect()
+}
+
+#[test]
+fn card_tags_are_stored_normalized() {
+    let db = mem();
+    let card = db
+        .create_card(&CardCreateParams {
+            title: "tagged".into(),
+            tags: Some(tags(&["mine", " github ", "", "mine"])),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(card.tags, tags(&["github", "mine"]));
+}
+
+#[test]
+fn card_update_replaces_tags_only_when_given() {
+    let db = mem();
+    let id = db
+        .create_card(&CardCreateParams {
+            title: "tagged".into(),
+            tags: Some(tags(&["github", "mine"])),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+
+    let kept = db
+        .update_card(&CardUpdateParams {
+            id,
+            title: Some("renamed".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(kept.tags, tags(&["github", "mine"]));
+
+    let replaced = db
+        .update_card(&CardUpdateParams {
+            id,
+            tags: Some(tags(&["ready-for-agent", "github"])),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(replaced.tags, tags(&["github", "ready-for-agent"]));
+
+    let cleared = db
+        .update_card(&CardUpdateParams {
+            id,
+            tags: Some(Vec::new()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(cleared.tags.is_empty());
+}
+
+#[test]
+fn duplicate_card_copies_tags() {
+    let db = mem();
+    let id = db
+        .create_card(&CardCreateParams {
+            title: "tagged".into(),
+            tags: Some(tags(&["github"])),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+    assert_eq!(db.duplicate_card(id).unwrap().tags, tags(&["github"]));
 }

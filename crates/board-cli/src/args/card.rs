@@ -35,6 +35,9 @@ pub(crate) enum CardCmd {
         /// Working directory for a `new-workspace` space.
         #[arg(long)]
         space_cwd: Option<String>,
+        /// A tag; repeat for several.
+        #[arg(long = "tag")]
+        tags: Vec<String>,
     },
     /// Update card fields; nullable fields are changed only with explicit clear flags.
     Edit {
@@ -76,6 +79,12 @@ pub(crate) enum CardCmd {
         space_cwd: Option<String>,
         #[arg(long)]
         clear_space_cwd: bool,
+        /// Replace the card's tags with these; repeat for several.
+        #[arg(long = "tag", conflicts_with = "clear_tags")]
+        tags: Vec<String>,
+        /// Remove every tag.
+        #[arg(long)]
+        clear_tags: bool,
     },
     /// Permanently delete a card and its history.
     Delete {

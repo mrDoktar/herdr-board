@@ -50,6 +50,7 @@ impl Form {
                     space_ref: self.card_space_ref(),
                     space_cwd: self.opt_text(FieldId::SpaceCwd),
                     position: None,
+                    tags: None,
                 }))
             }
             FormKind::CardEdit { card_id } => {
@@ -73,6 +74,8 @@ impl Form {
                     space_kind: self.opt_space_kind(),
                     space_ref: Patch::from_option(self.card_space_ref()),
                     space_cwd: Patch::from_option(self.opt_text(FieldId::SpaceCwd)),
+                    // The form does not edit tags; an edit keeps them.
+                    tags: None,
                 }))
             }
             FormKind::ColumnCreate => {

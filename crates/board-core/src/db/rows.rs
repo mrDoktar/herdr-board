@@ -100,6 +100,7 @@ pub(super) fn row_to_card(row: &Row) -> SqliteResult<Card> {
         archived_at: row.get("archived_at")?,
         // Stamped daemon-side with resolved display labels at serve time.
         labels: CardLabels::default(),
+        tags: serde_json::from_str(&row.get::<_, String>("tags")?).map_err(|_| conv_err("tags"))?,
     })
 }
 

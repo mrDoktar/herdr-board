@@ -132,6 +132,23 @@ pub struct Card {
     /// Missing on older serialized payloads, so default to empty.
     #[serde(default)]
     pub labels: CardLabels,
+    /// Free-form tags, sorted and without duplicates (see [`normalize_tags`]).
+    /// External tools set them (e.g. the GitHub issue sync); the TUI filters
+    /// on them. Missing on older serialized payloads, so default to empty.
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+/// Canonical tag set: trimmed, empty entries dropped, sorted, deduplicated.
+pub fn normalize_tags(tags: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = tags
+        .iter()
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// A timestamped note; author is `user`, `agent:<run_id>`, or `system`.

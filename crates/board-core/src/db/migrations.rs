@@ -8,7 +8,7 @@ use crate::{Error, Result};
 const SCHEMA_SQL: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../schema.sql"));
 
 /// The latest schema version embedded in [`SCHEMA_SQL`].
-const SCHEMA_VERSION: i64 = 15;
+const SCHEMA_VERSION: i64 = 16;
 
 /// v1 → v2 migration. SQLite cannot alter a CHECK constraint or drop a column
 /// in place, so `cards` is rebuilt. Legacy `space_kind` values `cwd`/`worktree`
@@ -303,6 +303,11 @@ END;
 /// `user_version` only advances after both columns exist.
 const V15_MIGRATION_TABLES: [&str; 2] = ["projects", "boards"];
 
+/// v15 → v16 migration: free-form card tags (a JSON array). One plain
+/// `ALTER TABLE`, guarded on the column's presence like v15; existing cards
+/// read `[]`.
+const V16_MIGRATION_SQL: &str = "ALTER TABLE cards ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'";
+
 impl Db {
     /// Apply migrations gated on `PRAGMA user_version`. Idempotent.
     ///
@@ -552,6 +557,16 @@ impl Db {
                             "ALTER TABLE {table} ADD COLUMN archived_at TEXT"
                         ))?;
                     }
+                }
+            }
+            if version < 16 {
+                let has_tags: bool = self.conn.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM pragma_table_info('cards') WHERE name='tags')",
+                    [],
+                    |r| r.get(0),
+                )?;
+                if !has_tags {
+                    self.conn.execute_batch(V16_MIGRATION_SQL)?;
                 }
             }
             self.conn
