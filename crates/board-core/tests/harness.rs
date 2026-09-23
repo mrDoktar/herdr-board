@@ -557,3 +557,54 @@ fn resume_invocation_refuses_without_capability_or_conversation_id() {
         );
     }
 }
+
+fn claude_launch_with_model(model: &str) -> Vec<String> {
+    let s = EffectiveSettings {
+        model: Some(model.into()),
+        ..settings()
+    };
+    build_invocation(
+        "claude",
+        &Config::default(),
+        &s,
+        &SessionPlan::Mint,
+        Some("uuid-1"),
+        "task",
+    )
+    .unwrap()
+    .argv
+}
+
+fn fallback_of(argv: &[String]) -> Option<&str> {
+    argv.iter()
+        .position(|a| a == "--fallback-model")
+        .and_then(|i| argv.get(i + 1))
+        .map(String::as_str)
+}
+
+#[test]
+fn claude_on_fable_falls_back_to_opus_5_5() {
+    for model in ["fable", "claude-fable-5-1"] {
+        let argv = claude_launch_with_model(model);
+        assert_eq!(fallback_of(&argv), Some("claude-opus-5-5"), "{model}: {argv:?}");
+    }
+    let legacy = claude_argv(
+        &EffectiveSettings {
+            model: Some("fable".into()),
+            ..settings()
+        },
+        &SessionPlan::Mint,
+        Some("uuid-1"),
+        "task",
+    )
+    .unwrap();
+    assert_eq!(fallback_of(&legacy), Some("claude-opus-5-5"));
+}
+
+#[test]
+fn claude_on_other_models_has_no_fallback() {
+    for model in ["claude-opus-5-5", "sonnet"] {
+        let argv = claude_launch_with_model(model);
+        assert_eq!(fallback_of(&argv), None, "{model}: {argv:?}");
+    }
+}

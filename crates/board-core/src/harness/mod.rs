@@ -360,6 +360,10 @@ pub fn claude_argv(
         argv.push("--model".to_string());
         argv.push(m.clone());
     }
+    if let Some(fallback) = claude_fallback_model(settings.model.as_deref()) {
+        argv.push("--fallback-model".to_string());
+        argv.push(fallback.to_string());
+    }
     if let Some(e) = &settings.effort {
         argv.push("--effort".to_string());
         argv.push(e.as_str().to_string());
@@ -512,6 +516,14 @@ fn managed_pi_invocation(
     })
 }
 
+/// The model Claude Code switches to when the card's model is overloaded or
+/// unavailable (`--fallback-model`). Fable falls back to Opus 5.5; other
+/// models run without a fallback.
+fn claude_fallback_model(model: Option<&str>) -> Option<&'static str> {
+    let model = model?.trim().to_ascii_lowercase();
+    (model == "fable" || model.starts_with("claude-fable")).then_some("claude-opus-5-5")
+}
+
 /// Build a managed Herdr Claude launch while preserving the established
 /// model/effort/permission/session flag ordering exactly.
 fn managed_claude_invocation(
@@ -523,6 +535,9 @@ fn managed_claude_invocation(
     let mut argv = vec!["claude".to_string()];
     if let Some(model) = &settings.model {
         argv.extend(["--model".to_string(), model.clone()]);
+    }
+    if let Some(fallback) = claude_fallback_model(settings.model.as_deref()) {
+        argv.extend(["--fallback-model".to_string(), fallback.to_string()]);
     }
     if let Some(effort) = settings.effort {
         argv.extend(["--effort".to_string(), effort.as_str().to_string()]);
