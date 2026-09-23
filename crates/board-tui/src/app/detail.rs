@@ -233,6 +233,23 @@ impl App {
     }
 }
 
+/// `A` on a GitHub issue card: assign the issue to you, unless it already is.
+fn assign_issue_to_me(app: &mut App, card: &board_core::model::Card) -> Vec<Effect> {
+    let Some(issue_url) = crate::github::issue_url(card) else {
+        app.set_toast("not a GitHub issue card", true);
+        return vec![];
+    };
+    if card.tags.iter().any(|t| t == crate::github::MINE_TAG) {
+        app.set_toast("already assigned to you", false);
+        return vec![];
+    }
+    vec![Effect::AssignIssueToMe {
+        card_id: card.id,
+        issue_url: issue_url.to_string(),
+        tags: card.tags.clone(),
+    }]
+}
+
 pub(super) fn detail_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
     let card_id = app.detail.as_ref().map(|d| d.card.id);
     if let Some(delta) = nav_delta(k.code) {
@@ -310,6 +327,11 @@ pub(super) fn detail_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
             match result {
                 Ok(effect) => return vec![effect],
                 Err(err) => app.set_toast(err.to_string(), true),
+            }
+        }
+        KeyCode::Char('A') => {
+            if let Some(card) = app.detail.as_ref().map(|d| d.card.clone()) {
+                return assign_issue_to_me(app, &card);
             }
         }
         KeyCode::Char('C') => {

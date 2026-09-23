@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 use crate::app::{update, App, CardFilter, Msg};
 use crate::editor::{EditorLauncher, RealEditor};
+use crate::github::{GhCli, IssueAssigner};
 use crate::OriginContext;
 
 /// Owns the client + editor and applies [`Effect`](crate::app::Effect)s
@@ -27,6 +28,8 @@ pub struct Driver {
     pub app: App,
     client: Box<dyn BoardClient>,
     editor: Box<dyn EditorLauncher>,
+    /// Changes GitHub issues (`gh`); tests swap in a fake.
+    issue_assigner: Box<dyn IssueAssigner>,
     /// The invoking Herdr/plugin context: which session socket to name when an
     /// effect needs one (`run.focus`, `pane.set_title`) and whether this
     /// process is actually the `herdr-board` plugin pane.
@@ -88,6 +91,7 @@ impl Driver {
             app: App::with_origin_context(board, origin.clone()),
             client,
             editor,
+            issue_assigner: Box::new(GhCli),
             origin,
             needs_full_redraw: false,
             selection_file: None,
@@ -102,6 +106,11 @@ impl Driver {
         self.origin.origin_socket = socket.clone();
         self.origin.session = board_core::paths::session_name_from_socket(socket.as_deref());
         self.app.origin_context = self.origin.clone();
+    }
+
+    /// Use `assigner` instead of the `gh` CLI (tests, embedders).
+    pub fn set_issue_assigner(&mut self, assigner: Box<dyn IssueAssigner>) {
+        self.issue_assigner = assigner;
     }
 
     /// Publish the selected card to `path` from now on (see [`Self::publish_selection`]).

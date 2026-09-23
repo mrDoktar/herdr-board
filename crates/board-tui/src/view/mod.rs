@@ -235,6 +235,7 @@ pub const HELP_KEYS: &[(Screen, &str, &str)] = &[
     (Screen::CardDetail, "Enter", "confirm done (awaiting)"),
     (Screen::CardDetail, "e", "edit card / comment"),
     (Screen::CardDetail, "a", "archive / restore card"),
+    (Screen::CardDetail, "A", "assign issue to me"),
     (Screen::CardDetail, "C", "duplicate card"),
     (Screen::CardDetail, "c", "add comment"),
     (Screen::CardDetail, "d", "delete focused comment"),

@@ -4,6 +4,8 @@
 #[path = "update/helpers.rs"]
 mod helpers;
 
+#[path = "update/assign_issue.rs"]
+mod assign_issue;
 #[path = "update/detail.rs"]
 mod detail;
 #[path = "update/editor.rs"]

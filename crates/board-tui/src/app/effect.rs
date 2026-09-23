@@ -44,6 +44,13 @@ pub enum Effect {
     /// Duplicate a card: the daemon creates an idle copy directly below the
     /// original, never dispatching a run.
     CardDuplicate(i64),
+    /// Assign the card's GitHub issue to the signed-in user (`gh`), then add
+    /// the `mine` tag to the card.
+    AssignIssueToMe {
+        card_id: i64,
+        issue_url: String,
+        tags: Vec<String>,
+    },
     CardArchive {
         id: i64,
         archived: bool,

@@ -17,6 +17,7 @@
 //! | [`app`] | the pure state machine (`Screen`/`App`/`update`) |
 //! | [`view`], [`widgets`] | the pure renderer |
 //! | [`forms`], [`editor`] | form model and `$EDITOR` launching |
+//! | [`github`] | GitHub issue cards and the `gh` CLI |
 //! | [`origin`] | the Herdr/plugin boundary |
 //!
 //! Everything the external test crates and `board-cli` use is re-exported here,
@@ -26,6 +27,7 @@ pub mod app;
 pub mod driver;
 pub mod editor;
 pub mod forms;
+pub mod github;
 pub mod origin;
 pub mod runtime;
 #[cfg(feature = "fake-client")]

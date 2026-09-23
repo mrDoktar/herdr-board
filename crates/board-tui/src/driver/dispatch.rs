@@ -89,6 +89,28 @@ impl Driver {
                 self.app
                     .set_toast(format!("card duplicated as #{copy_id}"), false);
             }
+            Effect::AssignIssueToMe {
+                card_id,
+                issue_url,
+                mut tags,
+            } => {
+                if let Err(e) = self.issue_assigner.assign_to_me(&issue_url) {
+                    self.app
+                        .set_toast(format!("could not assign the issue: {e:#}"), true);
+                    return;
+                }
+                tags.push(crate::github::MINE_TAG.to_string());
+                let r = self
+                    .client
+                    .card_update(&board_core::protocol::CardUpdateParams {
+                        id: card_id,
+                        tags: Some(tags),
+                        ..Default::default()
+                    });
+                if self.mutate(r, After::BoardThenDetail) {
+                    self.app.set_toast("issue assigned to you", false);
+                }
+            }
             Effect::CardUpdate(p) => {
                 let r = self.client.card_update(&p);
                 self.mutate(r, After::BoardThenDetail);
