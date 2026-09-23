@@ -851,7 +851,9 @@ executes the returned plan; it performs no Herdr or SQLite I/O in the pure decis
   state or failed transaction therefore cannot leave a partial row, event, or process effect.
 - **Per-space FIFO**: two agents mutating one working tree collide; cards sharing the typed
   `SpaceKey(session, space_kind, space_ref)` run serially. Null/default values remain typed and are
-  never separator-encoded.
+  never separator-encoded. `serial_per_space = false` (config) lifts the serial rule for setups
+  where each card has its own checkout; a pass then still launches one run per space, so two
+  launches never race on one workspace.
 - **Active-run timer source**: board snapshots expose only additive summaries for started, open
   runs. The TUI joins those summaries by card id, so comments/card edits cannot reset the elapsed
   timer; `started_at` remains the authoritative clock across event refreshes.

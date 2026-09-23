@@ -25,10 +25,17 @@ pub(crate) async fn dispatch_pass(d: &Arc<Daemon>) {
             return;
         }
     };
-    let mut busy: HashSet<SpaceKey> = active
-        .iter()
-        .map(|(_, card)| SpaceKey::from_card(card))
-        .collect();
+    // Spaces with a live run block their queue only when runs are serial per
+    // space. Either way, at most one launch per space starts in a pass, so two
+    // launches never race on the same workspace.
+    let mut busy: HashSet<SpaceKey> = if d.config.serial_per_space {
+        active
+            .iter()
+            .map(|(_, card)| SpaceKey::from_card(card))
+            .collect()
+    } else {
+        HashSet::new()
+    };
     let mut active_count = active.len();
     let max = d.config.max_concurrent.max(1);
 
@@ -44,6 +51,7 @@ pub(crate) async fn dispatch_pass(d: &Arc<Daemon>) {
     // Independent spaces then launch concurrently; a second run for a claimed
     // space cannot slip in while its first launch is in flight.
     let mut claimed = Vec::new();
+    let mut deferred = false;
     for (run, card) in queued {
         if active_count >= max {
             break;
@@ -52,6 +60,8 @@ pub(crate) async fn dispatch_pass(d: &Arc<Daemon>) {
         if busy.insert(key) {
             active_count += 1;
             claimed.push((run, card));
+        } else if !d.config.serial_per_space {
+            deferred = true;
         }
     }
 
@@ -86,6 +96,11 @@ pub(crate) async fn dispatch_pass(d: &Arc<Daemon>) {
             }
             Err(_) => tracing::error!(error_category = "task", "dispatch: launch task failed"),
         }
+    }
+    // Launches skipped only because their space already launched this pass go
+    // in the next pass, which sees this pass's runs as registered.
+    if deferred {
+        d.wake_dispatch();
     }
 }
 

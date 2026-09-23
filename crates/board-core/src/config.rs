@@ -11,6 +11,9 @@ use crate::{Error, Result};
 fn default_max_concurrent() -> usize {
     3
 }
+fn default_serial_per_space() -> bool {
+    true
+}
 fn default_idle_grace_seconds() -> u64 {
     90
 }
@@ -69,6 +72,11 @@ pub struct Config {
     /// Global cap on concurrent runs across all spaces.
     #[serde(default = "default_max_concurrent")]
     pub max_concurrent: usize,
+    /// `true` (default): cards sharing a space run one at a time. `false`: they
+    /// run side by side up to `max_concurrent`; only safe when every card works
+    /// in its own checkout (e.g. a per-card git worktree).
+    #[serde(default = "default_serial_per_space")]
+    pub serial_per_space: bool,
     /// Seconds an agent may sit idle (no `board done`) before it is parked awaiting review.
     #[serde(default = "default_idle_grace_seconds")]
     pub idle_grace_seconds: u64,
@@ -148,6 +156,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             max_concurrent: default_max_concurrent(),
+            serial_per_space: default_serial_per_space(),
             idle_grace_seconds: default_idle_grace_seconds(),
             harness: HashMap::new(),
             pi_agent_dir: None,

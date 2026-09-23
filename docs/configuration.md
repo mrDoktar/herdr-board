@@ -6,11 +6,13 @@ environment overrides applied after it is parsed. The [root README](../README.md
 
 ## Configure the daemon and custom harnesses
 
-Configuration lives at `~/.config/herdr-board/config.toml`; override it with
+Configuration lives at `~/.config/herdr-board/config.toml` on Linux and
+`~/Library/Application Support/herdr-board/config.toml` on macOS; override it with
 `HERDR_BOARD_CONFIG`.
 
 ```toml
 max_concurrent = 3         # global cap on concurrent runs
+serial_per_space = true    # false = cards sharing a workspace run side by side (needs a checkout per card)
 idle_grace_seconds = 90    # idle without board done before the card is parked in `awaiting` for review
 
 [daemon]
@@ -23,6 +25,12 @@ local_poll_ms = 2000        # local-spawner liveness interval
 argv = ["mytool", "--model", "{model}"]
 resume = false             # can this harness resume a recorded conversation? default false
 ```
+
+`serial_per_space = false` drops the one-run-per-space queue: cards in the same workspace run at
+the same time, still capped by `max_concurrent`. Each card still gets its own tab. At most one
+launch per space starts in a dispatch pass; the next pass starts the rest. Turn it off only when
+every card works in its own checkout (for example a per-card git worktree), since two agents in one
+working tree will overwrite each other.
 
 Custom harness prompts are delivered through `$BOARD_PROMPT`. The placeholders `{model}`, `{effort}`,
 and `{permission_mode}` are available in `argv`. Optional keys `models`, `efforts`, and

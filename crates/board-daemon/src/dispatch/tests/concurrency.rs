@@ -86,3 +86,74 @@ async fn dispatch_claims_a1_and_b1_before_launch_and_serializes_competing_passes
     assert_eq!(queued_ids, vec![a2.id]);
     assert_eq!(spawner.started().len(), 2);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parallel_spaces_run_cards_sharing_a_space_side_by_side_one_launch_per_pass() {
+    let spawner = Arc::new(PausedSpawner::default());
+    let config = Config {
+        max_concurrent: 3,
+        serial_per_space: false,
+        ..Default::default()
+    };
+    let (d, _, mut wakes) = test_daemon_with_config(spawner.clone(), config);
+    let (a1, a2) = {
+        let db = d.store.lock();
+        let make = |title: &str| {
+            db.create_card(&CardCreateParams {
+                title: title.into(),
+                space_kind: Some(SpaceKind::Workspace),
+                space_ref: Some("space-a".into()),
+                ..Default::default()
+            })
+            .unwrap()
+        };
+        let a1 = make("A1");
+        let a2 = make("A2");
+        for card in [&a1, &a2] {
+            db.enqueue_run_uow(&EnqueueRun {
+                card_id: card.id,
+                column_id: card.column_id,
+                harness: "pi",
+                argv_json: "[]",
+                prompt_snapshot: card.title.as_str(),
+                system_prompt_snapshot: None,
+                launch_spec_json: None,
+                session_id: None,
+                session: None,
+            })
+            .unwrap();
+        }
+        (a1, a2)
+    };
+
+    // First pass launches only the space's FIFO head and asks for another pass.
+    while wakes.try_recv().is_ok() {}
+    spawner.release();
+    dispatch_pass(&d).await;
+    let started = spawner.started();
+    assert_eq!(
+        started.len(),
+        1,
+        "one launch per space per pass: {started:?}"
+    );
+    assert!(started[0].starts_with(&format!("card-{}-", a1.id)));
+    assert!(
+        wakes.try_recv().is_ok(),
+        "deferred launch must wake the dispatcher"
+    );
+
+    // Second pass: A1 is live in the same space, yet A2 still starts.
+    dispatch_pass(&d).await;
+    let started = spawner.started();
+    assert_eq!(started.len(), 2, "A2 waited behind A1: {started:?}");
+    assert!(started[1].starts_with(&format!("card-{}-", a2.id)));
+
+    let db = d.store.lock();
+    let active_ids: Vec<_> = db
+        .active_runs_with_cards()
+        .unwrap()
+        .into_iter()
+        .map(|(_, card)| card.id)
+        .collect();
+    assert_eq!(active_ids, vec![a1.id, a2.id]);
+}
