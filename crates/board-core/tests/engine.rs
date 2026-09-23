@@ -3,8 +3,8 @@
 use board_core::config::{Config, HarnessDef};
 use board_core::engine::{
     decide_auto_hop, decide_entry, decide_lifecycle, decide_resumability, decide_signal,
-    decide_transition, format_duration, resolve_column, run_elapsed, validate_card_archive,
-    validate_card_edit, validate_card_space, validate_column_delete,
+    decide_transition, format_duration, resolve_column, resumable_session_for, run_elapsed,
+    validate_card_archive, validate_card_edit, validate_card_space, validate_column_delete,
     validate_column_permission_override, AgentSignal, AutoHopDecision, FinalizePlan,
     LifecycleAction, LifecycleDecision, LifecycleFacts, LifecycleHarness, LifecycleRejection,
     ResumabilityDecision, SignalDecision, ValidationError,
@@ -729,4 +729,44 @@ fn run_elapsed_measures_open_runs_against_now_and_clamps() {
     assert_eq!(run_elapsed(Some(100), None, 40), Some(0));
     assert_eq!(run_elapsed(Some(100), Some(40), 200), Some(0));
     assert_eq!(format_duration(run_elapsed(Some(100), None, 352)), "4m12s");
+}
+
+fn run_of(id: i64, harness: &str, session_id: &str) -> Run {
+    Run {
+        harness: harness.into(),
+        ..run_with_session(id, true, Some(session_id))
+    }
+}
+
+#[test]
+fn a_run_resumes_the_cards_session_when_its_own_harness_made_it() {
+    let runs = [run_of(1, "claude", "claude-1")];
+
+    let session = resumable_session_for("claude", Some("claude-1"), &runs, &[comment("agent:1")]);
+
+    assert_eq!(session.as_deref(), Some("claude-1"));
+}
+
+#[test]
+fn a_run_never_resumes_another_harness_session() {
+    let runs = [run_of(1, "claude", "claude-1")];
+
+    let session = resumable_session_for("codex", Some("claude-1"), &runs, &[comment("agent:1")]);
+
+    assert_eq!(session, None);
+}
+
+#[test]
+fn a_run_after_another_harness_picks_up_its_own_newest_session() {
+    // claude Plan, claude Execute, codex Review, then claude Release.
+    let runs = [
+        run_of(1, "claude", "claude-1"),
+        run_of(2, "claude", "claude-2"),
+        run_of(3, "codex", "codex-1"),
+    ];
+    let comments = [comment("agent:1"), comment("agent:2"), comment("agent:3")];
+
+    let session = resumable_session_for("claude", Some("codex-1"), &runs, &comments);
+
+    assert_eq!(session.as_deref(), Some("claude-2"));
 }

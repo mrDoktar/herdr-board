@@ -64,6 +64,44 @@ pub fn decide_resumability(
     }
 }
 
+/// The conversation a run of `harness` carries on, if any.
+///
+/// When the card's session was made by `harness`, this is
+/// [`decide_resumability`] unchanged. When another harness made it (a column
+/// overrides the harness, e.g. a codex Review between claude stages), that
+/// session is never resumed: a codex thread id means nothing to claude, and
+/// the other way round. The run picks up the newest resumable session of its
+/// own harness instead, or starts fresh when there is none.
+pub fn resumable_session_for(
+    harness: &str,
+    session_id: Option<&str>,
+    runs: &[Run],
+    comments: &[Comment],
+) -> Option<String> {
+    let session_id = session_id?;
+    let made_by_other_harness = runs
+        .iter()
+        .filter(|run| run.session_id.as_deref() == Some(session_id))
+        .any(|run| run.harness != harness);
+    if !made_by_other_harness {
+        return matches!(
+            decide_resumability(Some(session_id), runs, comments),
+            ResumabilityDecision::Resumable
+        )
+        .then(|| session_id.to_string());
+    }
+    runs.iter()
+        .filter(|run| run.harness == harness)
+        .filter(|run| {
+            matches!(
+                decide_resumability(run.session_id.as_deref(), runs, comments),
+                ResumabilityDecision::Resumable
+            )
+        })
+        .max_by_key(|run| run.id)
+        .and_then(|run| run.session_id.clone())
+}
+
 /// Outcome of applying a finished run's transition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransitionDecision {

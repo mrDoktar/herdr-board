@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use board_core::config::Config;
 use board_core::db::Db;
-use board_core::engine::{decide_resumability, validate_effective_settings, ResumabilityDecision};
+use board_core::engine::{resumable_session_for, validate_effective_settings};
 use board_core::harness::{build_invocation, is_builtin_harness, plan_session, SessionPlan};
 use board_core::launch::{ExecutionSpec, RunLaunchSpec};
 use board_core::model::{Card, Run};
@@ -101,14 +101,6 @@ pub(crate) fn prepare_enqueue_values(
 ) -> Result<PreparedEnqueue> {
     let column = db.require_column(column_id)?;
     let comments = db.list_comments(card.id)?;
-    let session_used = matches!(
-        decide_resumability(
-            card.session_id.as_deref(),
-            &db.list_runs(card.id)?,
-            &comments
-        ),
-        ResumabilityDecision::Resumable
-    );
     // Validate against the CURRENT live catalog when the effective harness is
     // antigravity: a stored model that the catalog no longer lists must fail
     // the enqueue with an actionable error (fail-closed when the catalog is
@@ -123,8 +115,17 @@ pub(crate) fn prepare_enqueue_values(
     validate_effective_settings(card, &column, &validation_config)?;
     let settings = effective_settings(card, &column)?;
     let prompt = assemble_prompt(&card.description, &comments);
-    let existing_session = card.session_id.as_deref().filter(|_| session_used);
-    let plan = plan_session(existing_session, settings.fresh_session, is_retry);
+    let existing_session = resumable_session_for(
+        effective_harness,
+        card.session_id.as_deref(),
+        &db.list_runs(card.id)?,
+        &comments,
+    );
+    let plan = plan_session(
+        existing_session.as_deref(),
+        settings.fresh_session,
+        is_retry,
+    );
     let target_session = matches!(plan, SessionPlan::Mint | SessionPlan::Fork(_))
         .then(|| Uuid::new_v4().to_string());
     let invocation = build_invocation(
