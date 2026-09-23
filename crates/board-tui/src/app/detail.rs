@@ -30,6 +30,7 @@ impl App {
         self.detail_scroll_target = DetailScrollTarget::Comments;
         self.detail_comments_scroll = 0;
         self.detail_runs_scroll = 0;
+        self.detail_desc_scroll = 0;
         self.detail_comment_sel = usize::MAX;
         self.detail_run_sel = usize::MAX;
         self.screen = Screen::CardDetail;
@@ -78,6 +79,17 @@ impl App {
         };
         let max = total.saturating_sub(visible.max(1));
         *offset = (*offset as isize + delta).clamp(0, max as isize) as usize;
+    }
+
+    /// Scroll the Description section by `delta` rows, clamped so the last
+    /// row stays at the bottom of the section.
+    pub(super) fn scroll_description(&mut self, delta: isize) {
+        let Some(detail) = &self.detail else { return };
+        let layout = crate::view::detail_layout(self, self.last_area);
+        let viewport = crate::view::description_viewport(&layout);
+        let total = crate::markdown::render(&detail.card.description, viewport.width).len();
+        let max = total.saturating_sub((viewport.height as usize).max(1));
+        self.detail_desc_scroll = (self.detail_desc_scroll.min(max) as isize + delta).clamp(0, max as isize) as usize;
     }
 
     /// Whether the focused comment can be edited/deleted: system comments are
@@ -288,11 +300,14 @@ pub(super) fn detail_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
             app.detail_fullscreen = false;
             app.detail_comments_scroll = 0;
             app.detail_runs_scroll = 0;
+            app.detail_desc_scroll = 0;
             app.detail_comment_sel = 0;
             app.detail_run_sel = 0;
             app.comment_history = None;
         }
         KeyCode::Char('f') => app.toggle_detail_fullscreen(),
+        KeyCode::Char('J') => app.scroll_description(1),
+        KeyCode::Char('K') => app.scroll_description(-1),
         KeyCode::Tab => {
             app.detail_scroll_target = match app.detail_scroll_target {
                 DetailScrollTarget::Comments => DetailScrollTarget::Runs,

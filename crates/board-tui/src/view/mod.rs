@@ -235,6 +235,7 @@ pub const HELP_KEYS: &[(Screen, &str, &str)] = &[
     (Screen::Board, "q / Esc", "back / quit"),
     (Screen::CardDetail, "--", "-- card detail --"),
     (Screen::CardDetail, "Enter", "confirm done (awaiting)"),
+    (Screen::CardDetail, "J / K", "scroll description"),
     (Screen::CardDetail, "e", "edit card / comment"),
     (Screen::CardDetail, "a", "archive / restore card"),
     (Screen::CardDetail, "A", "assign / unassign issue"),
@@ -306,6 +307,7 @@ mod layout;
 mod overlays;
 
 pub use detail::{
+    description_viewport,
     comment_row_spans, comment_wrapped_rows, comments_action_bar_shown, comments_viewport,
     detail_layout, detail_toggle_rect, runs_viewport_height, DetailLayout,
 };

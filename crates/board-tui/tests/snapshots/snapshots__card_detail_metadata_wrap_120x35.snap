@@ -1,5 +1,6 @@
 ---
 source: crates/board-tui/tests/snapshots.rs
+assertion_line: 553
 expression: wide
 ---
 " ◈ herdr-board ● 1 running          [ Global ▾ ]                   [ main ▾ ]            [ Active ] [ All ] [ Archived ]"
@@ -22,7 +23,7 @@ expression: wide
 "││eference                              │ │                                            │ │                            ││"
 "│└──────────────────────────────────────┘ │                                            │ │                            ││"
 "│┌Description───────────────────────────┐ │                                            │ │                            ││"
-"││                                      │ │                                            │ │                            ││"
+"││(no description)                      │ │                                            │ │                            ││"
 "││                                      │ │                                            │ │                            ││"
 "││                                      │ │                                            │ │                            ││"
 "││                                      │ │                                            │ │                            ││"

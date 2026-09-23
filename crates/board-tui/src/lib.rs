@@ -28,6 +28,7 @@ pub mod driver;
 pub mod editor;
 pub mod forms;
 pub mod github;
+pub mod markdown;
 pub mod origin;
 pub mod runtime;
 #[cfg(feature = "fake-client")]

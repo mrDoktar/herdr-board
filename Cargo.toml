@@ -42,6 +42,7 @@ tokio = { version = "1", features = [
 
 # TUI
 ratatui = "0.28"
+pulldown-cmark = { version = "0.13", default-features = false }
 crossterm = "0.28"
 tui-textarea = "0.6"
 

@@ -158,6 +158,8 @@ pub struct App {
     pub detail_scroll_target: DetailScrollTarget,
     pub detail_comments_scroll: usize,
     pub detail_runs_scroll: usize,
+    /// Row offset of the Description section (`J`/`K`, mouse wheel over it).
+    pub detail_desc_scroll: usize,
     /// Index into `detail.comments` of the focused comment (edit/delete/
     /// history act on it). Only meaningful while `detail_scroll_target ==
     /// Comments` and `detail.comments` is non-empty — see `focused_comment`.
@@ -235,6 +237,7 @@ impl App {
             detail_scroll_target: DetailScrollTarget::Comments,
             detail_comments_scroll: 0,
             detail_runs_scroll: 0,
+            detail_desc_scroll: 0,
             detail_comment_sel: 0,
             detail_run_sel: 0,
             comment_history: None,

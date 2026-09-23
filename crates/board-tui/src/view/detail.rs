@@ -167,14 +167,6 @@ pub fn detail_toggle_rect(app: &App, area: Rect) -> Rect {
     )
 }
 
-fn wrapped_line_count(text: &str, width: u16) -> u16 {
-    let width = width.max(1) as usize;
-    text.lines()
-        .map(|line| line.chars().count().max(1).div_ceil(width) as u16)
-        .sum::<u16>()
-        .max(1)
-}
-
 /// Greedy word-wrap row count for a single comment string `"[author] body"`,
 /// approximating ratatui `Wrap { trim: false }`: each rendered line holds as
 /// many space-separated words as fit in `width` (by `chars().count()`), an
@@ -353,7 +345,9 @@ fn detail_section_heights(
     available: u16,
     comments_active: bool,
 ) -> ([u16; 3], u16) {
-    let desc_lines = wrapped_line_count(&detail.card.description, width);
+    // `width` is the section width minus one; the text sits inside borders.
+    let desc_lines =
+        (crate::markdown::render(&detail.card.description, width.saturating_sub(1)).len() as u16).max(1);
     let comment_lines = comment_wrapped_rows(detail, width) as u16;
     let run_lines = (detail.runs.len() as u16).max(1);
     let bar_row = if comments_active && !detail.comments.is_empty() {
@@ -914,12 +908,7 @@ pub(super) fn draw_detail(app: &App, f: &mut Frame, area: Rect) {
     }
 
     if layout.description.height >= MIN_CLOSED_SECTION_HEIGHT {
-        f.render_widget(
-            Paragraph::new(card.description.as_str())
-                .wrap(Wrap { trim: false })
-                .block(section_block("Description", false)),
-            layout.description,
-        );
+        draw_description(app, f, &card.description, layout.description);
     }
 
     let compact = app.layout_mode() == super::LayoutMode::Compact;
@@ -966,6 +955,29 @@ pub(super) fn draw_detail(app: &App, f: &mut Frame, area: Rect) {
         }
         .render(f, layout.run_actions, &mut app.hit_map.borrow_mut());
     }
+}
+
+/// The rows inside the Description section's border.
+pub fn description_viewport(layout: &DetailLayout) -> Rect {
+    Block::default().borders(Borders::ALL).inner(layout.description)
+}
+
+/// The description rendered as markdown, scrolled by `detail_desc_scroll`;
+/// the title's arrows say when more rows sit above or below.
+fn draw_description(app: &App, f: &mut Frame, description: &str, area: Rect) {
+    let viewport = Block::default().borders(Borders::ALL).inner(area);
+    let lines = crate::markdown::render(description, viewport.width);
+    let visible = viewport.height as usize;
+    let offset = app
+        .detail_desc_scroll
+        .min(lines.len().saturating_sub(visible.max(1)));
+    let title = detail_section_title("Description", lines.len(), offset, visible);
+    let body = if lines.is_empty() {
+        Paragraph::new("(no description)").style(Style::default().fg(Color::Gray))
+    } else {
+        Paragraph::new(lines.into_iter().skip(offset).take(visible).collect::<Vec<_>>())
+    };
+    f.render_widget(body.block(section_block(&title, false)), area);
 }
 
 fn draw_comments(app: &App, f: &mut Frame, detail: &CardDetail, layout: &DetailLayout) {

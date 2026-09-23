@@ -9,6 +9,7 @@ board-core = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 ratatui = { workspace = true }
+pulldown-cmark = { workspace = true }
 crossterm = { workspace = true }
 tui-textarea = { workspace = true }
 tempfile = { workspace = true }

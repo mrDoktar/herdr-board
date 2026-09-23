@@ -53,6 +53,15 @@ pub(super) fn on_mouse(app: &mut App, m: MouseEvent) -> Vec<Effect> {
                     app.detail_scroll_target = DetailScrollTarget::Runs;
                 }
             }
+            MouseEventKind::ScrollDown | MouseEventKind::ScrollUp
+                if in_rect(detail_layout.description) =>
+            {
+                app.scroll_description(if matches!(m.kind, MouseEventKind::ScrollDown) {
+                    1
+                } else {
+                    -1
+                });
+            }
             MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
                 if in_rect(detail_layout.comments) {
                     app.detail_scroll_target = DetailScrollTarget::Comments;
