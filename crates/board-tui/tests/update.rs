@@ -22,3 +22,5 @@ mod selection_file;
 mod support_nav;
 #[path = "update/switcher.rs"]
 mod switcher;
+#[path = "update/tag_filter.rs"]
+mod tag_filter;

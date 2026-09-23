@@ -7,7 +7,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap};
 use ratatui::Frame;
 
-use crate::app::{App, CardFilter, Screen};
+use crate::app::{App, CardFilter, Screen, TagFilter};
 use crate::widgets::{
     button_text, render_button_chip_at, render_button_chip_at_with_modifier, render_sheet_frame,
     windowed_rows, ActionButton, ActionStrip, ActionTone, UiAction, Zone,
@@ -56,9 +56,16 @@ pub(super) fn draw_board(app: &App, f: &mut Frame, area: Rect) {
         };
         let card_count = app.cards_of(column.id).len();
         if !compact {
+            let tag_filter =
+                if app.tag_filter != TagFilter::All && app.tag_filter_applies(column.id) {
+                    format!(" [{}]", app.tag_filter.label().to_uppercase())
+                } else {
+                    String::new()
+                };
             let title = format!(
-                " {} · {} · {} ",
+                " {}{} · {} · {} ",
                 column.name.to_uppercase(),
+                tag_filter,
                 column.trigger.as_str().to_uppercase(),
                 card_count,
             );

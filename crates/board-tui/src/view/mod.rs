@@ -219,6 +219,7 @@ pub const HELP_KEYS: &[(Screen, &str, &str)] = &[
     (Screen::Board, "a", "archive / restore card"),
     (Screen::Board, "C", "duplicate card"),
     (Screen::Board, "v", "cycle active/all/archived"),
+    (Screen::Board, "t", "Todo: all/ready/mine"),
     (Screen::Board, "d", "delete card"),
     (Screen::Board, "D", "delete/move column cards"),
     (Screen::Board, "m", "move card (project→board)"),

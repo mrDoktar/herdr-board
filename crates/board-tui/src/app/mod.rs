@@ -51,7 +51,7 @@ pub use nav::clamp_selection;
 pub use state::{
     CardFilter, CommentHistoryView, Confirm, ConfirmPurpose, DetailScrollTarget, DragKind,
     DragState, MoveColumnState, Picker, PickerAction, PickerPurpose, PickerRow, ReorderCardState,
-    SwitcherState, Toast,
+    SwitcherState, TagFilter, Toast,
 };
 
 pub(crate) use state::column_options;
@@ -147,6 +147,8 @@ pub struct App {
     pub sel_col: usize,
     pub sel_card: usize,
     pub card_filter: CardFilter,
+    /// GitHub issue filter for the Todo column (`t`).
+    pub tag_filter: TagFilter,
     pub picker_visibility: Visibility,
     pub detail: Option<CardDetail>,
     /// Card detail opens as a contextual popup; users can expand it in place.
@@ -225,6 +227,7 @@ impl App {
             sel_col: 0,
             sel_card: 0,
             card_filter: CardFilter::Active,
+            tag_filter: TagFilter::All,
             picker_visibility: Visibility::Active,
             detail: None,
             detail_fullscreen: false,
@@ -372,6 +375,7 @@ impl App {
     /// rendering, hit-testing) sees the staged order and a mid-mode refresh
     /// cannot silently discard it.
     pub fn cards_of(&self, col_id: i64) -> Vec<&board_core::model::Card> {
+        let tag_filtered = self.tag_filter_applies(col_id);
         let mut cards: Vec<&board_core::model::Card> = self
             .board
             .cards
@@ -382,6 +386,7 @@ impl App {
                 CardFilter::All => true,
                 CardFilter::Archived => c.archived_at.is_some(),
             })
+            .filter(|c| !tag_filtered || self.tag_filter.shows(c))
             .collect();
         if let Some(state) = &self.reorder_card {
             if state.column_id == col_id {
@@ -393,6 +398,14 @@ impl App {
             }
         }
         cards
+    }
+
+    /// Whether [`Self::tag_filter`] narrows this column: only the Todo column.
+    pub fn tag_filter_applies(&self, col_id: i64) -> bool {
+        self.board
+            .columns
+            .iter()
+            .any(|c| c.id == col_id && c.name.eq_ignore_ascii_case(TagFilter::COLUMN))
     }
 
     pub fn selected_card_id(&self) -> Option<i64> {

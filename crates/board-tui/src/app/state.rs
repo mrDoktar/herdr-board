@@ -59,6 +59,57 @@ impl CardFilter {
     }
 }
 
+/// Which GitHub issue cards the Todo column shows (the `t` key). Cards the
+/// issue sync made carry the [`TagFilter::ISSUE_TAG`] tag plus a tag per
+/// match; any other card is always shown.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum TagFilter {
+    #[default]
+    All,
+    ReadyForAgent,
+    Mine,
+}
+
+impl TagFilter {
+    /// Marks a card as made from a GitHub issue by `scripts/issue-sync.sh`.
+    pub const ISSUE_TAG: &'static str = "github";
+    /// The only column the filter applies to (matched ignoring case).
+    pub const COLUMN: &'static str = "Todo";
+
+    pub fn next(self) -> Self {
+        match self {
+            Self::All => Self::ReadyForAgent,
+            Self::ReadyForAgent => Self::Mine,
+            Self::Mine => Self::All,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::ReadyForAgent => "Ready for Agent",
+            Self::Mine => "Mine",
+        }
+    }
+
+    /// The tag an issue card needs to be shown; `None` shows every card.
+    fn required_tag(self) -> Option<&'static str> {
+        match self {
+            Self::All => None,
+            Self::ReadyForAgent => Some("ready-for-agent"),
+            Self::Mine => Some("mine"),
+        }
+    }
+
+    pub fn shows(self, card: &board_core::model::Card) -> bool {
+        let Some(tag) = self.required_tag() else {
+            return true;
+        };
+        let has = |t: &str| card.tags.iter().any(|x| x == t);
+        !has(Self::ISSUE_TAG) || has(tag)
+    }
+}
+
 /// A transient status message.
 pub struct Toast {
     pub text: String,

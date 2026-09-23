@@ -53,6 +53,12 @@ pub(super) fn board_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
             }
         }
         KeyCode::Char('v') => return set_card_filter(app, app.card_filter.next()),
+        KeyCode::Char('t') => {
+            app.tag_filter = app.tag_filter.next();
+            app.sel_card = 0;
+            app.clamp_card();
+            app.set_toast(format!("Todo: {}", app.tag_filter.label()), false);
+        }
         KeyCode::Char('d') => {
             if let Some(id) = app.selected_card_id() {
                 app.confirm = Some(Confirm {
