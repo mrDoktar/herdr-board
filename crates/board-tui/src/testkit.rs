@@ -110,6 +110,8 @@ pub fn hostile_origin() -> OriginContext {
         session: Some("hostile-session".into()),
         plugin_id: Some("hostile-plugin-sentinel".into()),
         pane_id: Some("hostile-pane-sentinel".into()),
+        workspace_id: Some("hostile-workspace-sentinel".into()),
+        cwd: Some("/hostile/cwd".into()),
     }
 }
 

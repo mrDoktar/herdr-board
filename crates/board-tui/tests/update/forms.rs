@@ -133,30 +133,39 @@ fn form_field_cycling_wraps_and_skips_hidden() {
     update(&mut app, key(KeyCode::Char('n'))); // open new-card form
     assert_eq!(app.screen, Screen::CardForm);
 
-    // Focus starts at Title (0). Tab advances; `cwd` is hidden while the space
-    // kind is `workspace`, so the visible-field walk skips it.
+    // Focus starts at Title (0). Tab advances and never lands on a hidden
+    // field (e.g. the `(custom)` space-ref companion while a workspace is
+    // selected from the list).
     let start = app.form.as_ref().unwrap().focus;
     assert_eq!(start, 0);
     update(&mut app, key(KeyCode::Tab));
     assert_eq!(app.form.as_ref().unwrap().focus, 1);
+    let field_count = app.form.as_ref().unwrap().fields.len();
+    for _ in 0..field_count {
+        update(&mut app, key(KeyCode::Tab));
+        let form = app.form.as_ref().unwrap();
+        assert!(form.field_visible(form.focus));
+    }
 
-    // BackTab from field 0 wraps to the last *visible* field.
+    // BackTab from field 0 wraps to the last *visible* field: `cwd`, which is
+    // shown for both space kinds.
     while app.form.as_ref().unwrap().focus != 0 {
         update(&mut app, key(KeyCode::BackTab));
     }
     update(&mut app, key(KeyCode::BackTab));
     let last = app.form.as_ref().unwrap().focus;
     assert!(app.form.as_ref().unwrap().field_visible(last));
-    assert_ne!(
+    assert_eq!(
         app.form.as_ref().unwrap().fields[last].id,
         FieldId::SpaceCwd
     );
 }
 
+/// `cwd` is shown for both space kinds: required for a new workspace, and an
+/// explicit launch-folder override for an existing one.
 #[test]
-fn cwd_visibility_follows_space_kind() {
+fn cwd_is_visible_for_both_space_kinds() {
     let mut form = Form::card_create(1);
-    // Find the space-kind choice field and cycle it to "new workspace".
     let space_idx = form
         .fields
         .iter()
@@ -167,9 +176,8 @@ fn cwd_visibility_follows_space_kind() {
         .iter()
         .position(|f| f.id == FieldId::SpaceCwd)
         .unwrap();
-    assert!(!form.field_visible(cwd_idx)); // hidden by default (workspace)
-                                           // workspace -> new workspace
-    form.fields[space_idx].cycle(1);
+    assert!(form.field_visible(cwd_idx)); // workspace
+    form.fields[space_idx].cycle(1); // workspace -> new workspace
     assert!(form.field_visible(cwd_idx));
 }
 
@@ -1072,4 +1080,65 @@ fn form_title_advertises_the_toggle_only_on_picker_fields() {
         picker_field_frame.contains("f: fullscreen"),
         "picker-field title must advertise the f toggle:\n{picker_field_frame}"
     );
+}
+
+/// Opening the board from a Herdr pane makes a new card target that pane's
+/// workspace and folder. Without an explicit cwd the daemon must pick among
+/// every live pane cwd — and the board's own overlay pane (started in the
+/// plugin directory) always makes that ambiguous.
+#[test]
+fn new_card_defaults_space_to_the_invoking_workspace_and_pane_cwd() {
+    let origin = board_tui::OriginContext {
+        workspace_id: Some("wS".into()),
+        cwd: Some("/repo".into()),
+        ..Default::default()
+    };
+    let mut form = Form::card_create_with_origin(1, &origin);
+    let cwd_idx = form
+        .fields
+        .iter()
+        .position(|f| f.id == FieldId::SpaceCwd)
+        .unwrap();
+    assert!(
+        form.field_visible(cwd_idx),
+        "cwd must be editable for a workspace card"
+    );
+    form.fields
+        .iter_mut()
+        .find(|f| f.id == FieldId::Title)
+        .unwrap()
+        .set_text("t");
+    match form.submit().unwrap() {
+        Submit::CardCreate(params) => {
+            assert_eq!(params.space_kind, Some(SpaceKind::Workspace));
+            assert_eq!(params.space_ref.as_deref(), Some("wS"));
+            assert_eq!(params.space_cwd.as_deref(), Some("/repo"));
+        }
+        _ => panic!("expected card create"),
+    }
+}
+
+/// A workspace card's explicit cwd is shown and kept on edit, not silently
+/// cleared because the field used to be new-workspace only.
+#[test]
+fn editing_a_workspace_card_keeps_its_explicit_cwd() {
+    let mut client = demo_client().unwrap();
+    let board = client.board_get().unwrap();
+    let mut card = board.cards[0].clone();
+    card.space_kind = SpaceKind::Workspace;
+    card.space_ref = Some("wS".into());
+    card.space_cwd = Some("/repo".into());
+    let form = Form::card_edit(&card);
+    let cwd_idx = form
+        .fields
+        .iter()
+        .position(|f| f.id == FieldId::SpaceCwd)
+        .unwrap();
+    assert!(form.field_visible(cwd_idx));
+    match form.submit().unwrap() {
+        Submit::CardUpdate(params) => {
+            assert!(matches!(params.space_cwd, Patch::Set(ref cwd) if cwd == "/repo"));
+        }
+        _ => panic!("expected card update"),
+    }
 }

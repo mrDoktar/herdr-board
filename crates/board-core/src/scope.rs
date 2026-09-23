@@ -7,10 +7,28 @@ use serde::Deserialize;
 
 use crate::Result;
 
+/// The parts of Herdr's `HERDR_PLUGIN_CONTEXT_JSON` (a `PluginInvocationContext`)
+/// the board uses: where the plugin was invoked from.
 #[derive(Debug, Default, Deserialize)]
-struct PluginContext {
-    focused_pane_cwd: Option<String>,
-    workspace_cwd: Option<String>,
+pub struct PluginContext {
+    pub workspace_id: Option<String>,
+    pub focused_pane_cwd: Option<String>,
+    pub workspace_cwd: Option<String>,
+}
+
+impl PluginContext {
+    /// Parse the context JSON. Absent or invalid JSON is an empty context so
+    /// callers can safely fall back.
+    pub fn parse(json: Option<&str>) -> PluginContext {
+        json.and_then(|json| serde_json::from_str(json).ok())
+            .unwrap_or_default()
+    }
+
+    /// The invoking directory: the focused pane cwd, else the workspace cwd.
+    pub fn cwd(&self) -> Option<&str> {
+        non_empty(self.focused_pane_cwd.as_deref())
+            .or_else(|| non_empty(self.workspace_cwd.as_deref()))
+    }
 }
 
 /// Select the unnormalized scope candidate without reading process-global state.
@@ -27,16 +45,10 @@ pub fn select_scope_candidate(
         return Ok(PathBuf::from(path));
     }
 
-    let context = plugin_context_json
-        .and_then(|json| serde_json::from_str::<PluginContext>(json).ok())
-        .unwrap_or_default();
-    if let Some(path) = non_empty(context.focused_pane_cwd.as_deref()) {
-        return Ok(PathBuf::from(path));
+    match PluginContext::parse(plugin_context_json).cwd() {
+        Some(path) => Ok(PathBuf::from(path)),
+        None => Ok(current_dir.to_path_buf()),
     }
-    if let Some(path) = non_empty(context.workspace_cwd.as_deref()) {
-        return Ok(PathBuf::from(path));
-    }
-    Ok(current_dir.to_path_buf())
 }
 
 /// Canonicalize a candidate and use its Git root when it belongs to a repo.

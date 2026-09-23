@@ -11,6 +11,11 @@ pub struct OriginContext {
     pub session: Option<String>,
     pub plugin_id: Option<String>,
     pub pane_id: Option<String>,
+    /// The Herdr workspace the board was opened from.
+    pub workspace_id: Option<String>,
+    /// The folder the board was opened from (the focused pane's cwd, else the
+    /// workspace cwd). New cards default to it.
+    pub cwd: Option<String>,
 }
 
 impl OriginContext {
@@ -19,6 +24,9 @@ impl OriginContext {
         let origin_socket = std::env::var("HERDR_SOCKET_PATH")
             .ok()
             .filter(|socket| !socket.is_empty());
+        let plugin_context = board_core::scope::PluginContext::parse(
+            std::env::var("HERDR_PLUGIN_CONTEXT_JSON").ok().as_deref(),
+        );
         OriginContext {
             session: board_core::paths::session_name_from_socket(origin_socket.as_deref()),
             origin_socket,
@@ -28,6 +36,10 @@ impl OriginContext {
             pane_id: std::env::var("HERDR_PANE_ID")
                 .ok()
                 .filter(|value| !value.is_empty()),
+            cwd: plugin_context.cwd().map(str::to_string),
+            workspace_id: plugin_context
+                .workspace_id
+                .filter(|value| !value.trim().is_empty()),
         }
     }
 }

@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- [#121](https://github.com/nelsonPires5/herdr-board/pull/121) fix: New cards default to the workspace and folder you opened the board from, and the cwd field is editable for workspace cards.
+
 ## [0.17.0] - 2026-09-13
 
 ### Added

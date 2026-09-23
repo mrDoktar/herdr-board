@@ -7,6 +7,7 @@ use board_core::model::{Board, Card, Column, Comment, Project};
 use board_core::protocol::{Effort, ProjectInfo, SessionInfo, SpaceInfo};
 
 use crate::app::Screen;
+use crate::OriginContext;
 
 use super::{ChoiceOpt, ChoiceVal, Field, FieldId, Form, FormKind};
 
@@ -49,7 +50,23 @@ impl Form {
     }
 
     pub fn card_create_with_session(column_id: i64, session: Option<&str>) -> Form {
-        let values = CardValues::from_card(None, session);
+        Self::card_create_from_values(column_id, CardValues::from_card(None, session))
+    }
+
+    /// A new card that defaults to where the board was opened: the origin's
+    /// session, workspace, and folder. The explicit folder keeps dispatch from
+    /// having to choose among the workspace's pane cwds — which always differ
+    /// once the board's own pane (started in the plugin directory) is open.
+    pub fn card_create_with_origin(column_id: i64, origin: &OriginContext) -> Form {
+        let mut values = CardValues::from_card(None, origin.session.as_deref());
+        if let Some(workspace_id) = &origin.workspace_id {
+            values.space_ref = workspace_id.clone();
+            values.space_cwd = origin.cwd.clone().unwrap_or_default();
+        }
+        Self::card_create_from_values(column_id, values)
+    }
+
+    fn card_create_from_values(column_id: i64, values: CardValues) -> Form {
         Form {
             kind: FormKind::CardCreate { column_id },
             fields: build_card_fields(&values, None, &default_harnesses(), &[], &[], None),
@@ -429,7 +446,8 @@ pub(super) struct CardValues {
     pub(super) space_kind: String,
     /// Effective space ref (workspace id, or new-workspace label / free text).
     pub(super) space_ref: String,
-    /// Working directory for a `new_workspace` space ("" = unset).
+    /// Working directory: required for a `new_workspace` space, an explicit
+    /// launch-folder override for a `workspace` space ("" = unset).
     pub(super) space_cwd: String,
 }
 
@@ -461,7 +479,7 @@ impl CardValues {
 
 /// Build the guided card fields from the current values and (optional) live
 /// catalog / workspace / session lists. The field list is a fixed set in a
-/// stable order — `(custom)` companions and `cwd` are hidden via
+/// stable order — `(custom)` companions are hidden via
 /// [`Form::field_visible`] rather than omitted, so focus indices stay stable
 /// across rebuilds.
 pub(super) fn build_card_fields(
@@ -644,7 +662,16 @@ pub(super) fn build_card_fields(
         Field::choice(FieldId::SpaceKind, "space", space_opts, space_idx),
         space_ref_field,
         space_ref_custom_field,
-        Field::text(FieldId::SpaceCwd, "cwd", &v.space_cwd, false),
+        Field::text(
+            FieldId::SpaceCwd,
+            if is_new_workspace {
+                "cwd"
+            } else {
+                "cwd (blank = from panes)"
+            },
+            &v.space_cwd,
+            false,
+        ),
     ]
 }
 

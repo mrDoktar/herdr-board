@@ -76,3 +76,17 @@ fn fallback_and_git_root_are_canonicalized() {
         real.canonicalize().unwrap()
     );
 }
+
+#[test]
+fn plugin_context_exposes_workspace_and_prefers_focused_pane_cwd() {
+    use board_core::scope::PluginContext;
+    let ctx = PluginContext::parse(Some(
+        r#"{"workspace_id":"wS","focused_pane_cwd":"/focused","workspace_cwd":"/workspace"}"#,
+    ));
+    assert_eq!(ctx.workspace_id.as_deref(), Some("wS"));
+    assert_eq!(ctx.cwd(), Some("/focused"));
+    let ctx = PluginContext::parse(Some(r#"{"focused_pane_cwd":" ","workspace_cwd":"/w"}"#));
+    assert_eq!(ctx.cwd(), Some("/w"));
+    assert_eq!(PluginContext::parse(Some("not json")).cwd(), None);
+    assert_eq!(PluginContext::parse(None).workspace_id, None);
+}
