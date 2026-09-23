@@ -95,7 +95,7 @@ impl Driver {
                 mut tags,
                 assign,
             } => {
-                if let Err(e) = self.issue_assigner.set_me_assigned(&issue_url, assign) {
+                if let Err(e) = self.github.set_me_assigned(&issue_url, assign) {
                     let action = if assign { "assign" } else { "unassign" };
                     self.app
                         .set_toast(format!("could not {action} the issue: {e:#}"), true);
@@ -121,6 +121,46 @@ impl Driver {
                         },
                         false,
                     );
+                }
+            }
+            Effect::CreateIssue {
+                card_id,
+                repo,
+                title,
+                description,
+                mut tags,
+            } => {
+                let url = match self.github.create_issue(&repo, &title, &description) {
+                    Ok(url) => url,
+                    Err(e) => {
+                        self.app
+                            .set_toast(format!("could not create the issue: {e:#}"), true);
+                        return;
+                    }
+                };
+                let number = crate::github::number_of(&url).unwrap_or_default();
+                tags.extend([
+                    crate::app::TagFilter::ISSUE_TAG.to_string(),
+                    crate::github::MINE_TAG.to_string(),
+                ]);
+                // The title and description the issue sync gives an issue card,
+                // so the sync recognises this card instead of adding another.
+                let r = self
+                    .client
+                    .card_update(&board_core::protocol::CardUpdateParams {
+                        id: card_id,
+                        title: Some(format!("#{number} {title}")),
+                        description: Some(format!(
+                            "GitHub issue #{number}: {url}\n\
+                         (Read its comments with `gh issue view {number} --comments`.)\n\n\
+                         {description}"
+                        )),
+                        tags: Some(tags),
+                        ..Default::default()
+                    });
+                if self.mutate(r, After::BoardThenDetail) {
+                    self.app
+                        .set_toast(format!("created issue #{number}, assigned to you"), false);
                 }
             }
             Effect::CardUpdate(p) => {

@@ -4,14 +4,14 @@
 #[path = "update/helpers.rs"]
 mod helpers;
 
-#[path = "update/assign_issue.rs"]
-mod assign_issue;
 #[path = "update/detail.rs"]
 mod detail;
 #[path = "update/editor.rs"]
 mod editor;
 #[path = "update/forms.rs"]
 mod forms;
+#[path = "update/issue_cards.rs"]
+mod issue_cards;
 #[path = "update/modals.rs"]
 mod modals;
 #[path = "update/pane_title.rs"]

@@ -52,6 +52,16 @@ pub enum Effect {
         tags: Vec<String>,
         assign: bool,
     },
+    /// Open a GitHub issue in `repo` from a hand-made card, assigned to the
+    /// signed-in user, then turn the card into that issue's card: `#<n>`
+    /// title, issue link in the description, `github` and `mine` tags.
+    CreateIssue {
+        card_id: i64,
+        repo: String,
+        title: String,
+        description: String,
+        tags: Vec<String>,
+    },
     CardArchive {
         id: i64,
         archived: bool,

@@ -248,6 +248,33 @@ fn toggle_issue_mine(app: &mut App, card: &board_core::model::Card) -> Vec<Effec
     }]
 }
 
+/// `G` on a hand-made card: open a GitHub issue from it. The repo is the one
+/// the board's other issue cards come from.
+fn create_issue(app: &mut App, card: &board_core::model::Card) -> Vec<Effect> {
+    if card.tags.iter().any(|t| t == super::TagFilter::ISSUE_TAG) {
+        app.set_toast("already a GitHub issue card", true);
+        return vec![];
+    }
+    let Some(repo) = app
+        .board
+        .cards
+        .iter()
+        .filter_map(crate::github::issue_url)
+        .find_map(crate::github::repo_of)
+        .map(str::to_string)
+    else {
+        app.set_toast("no GitHub repo on this board yet: sync issues first", true);
+        return vec![];
+    };
+    vec![Effect::CreateIssue {
+        card_id: card.id,
+        repo,
+        title: card.title.clone(),
+        description: card.description.clone(),
+        tags: card.tags.clone(),
+    }]
+}
+
 pub(super) fn detail_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
     let card_id = app.detail.as_ref().map(|d| d.card.id);
     if let Some(delta) = nav_delta(k.code) {
@@ -325,6 +352,11 @@ pub(super) fn detail_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
             match result {
                 Ok(effect) => return vec![effect],
                 Err(err) => app.set_toast(err.to_string(), true),
+            }
+        }
+        KeyCode::Char('G') => {
+            if let Some(card) = app.detail.as_ref().map(|d| d.card.clone()) {
+                return create_issue(app, &card);
             }
         }
         KeyCode::Char('A') => {
