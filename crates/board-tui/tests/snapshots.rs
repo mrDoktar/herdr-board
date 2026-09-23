@@ -492,6 +492,8 @@ fn card_detail_wraps_long_description_and_comment_popup_and_fullscreen() {
     // The newly created card is the second card in Todo (after "Update docs").
     key(&mut d, KeyCode::Down);
     key(&mut d, KeyCode::Enter);
+    // Cards open fullscreen; `f` switches to the popup these snapshots record.
+    key(&mut d, KeyCode::Char('f'));
     insta::assert_snapshot!("card_detail_wrap_popup_80x24", render(&mut d, 80, 24));
     insta::assert_snapshot!("card_detail_wrap_popup_120x35", render(&mut d, 120, 35));
     key(&mut d, KeyCode::Char('f'));
@@ -529,6 +531,8 @@ fn card_detail_metadata_wraps_wide_and_ellipsizes_when_compact() {
     let mut d = driver(client);
     key(&mut d, KeyCode::Down);
     key(&mut d, KeyCode::Enter);
+    // Cards open fullscreen; `f` switches to the popup these snapshots record.
+    key(&mut d, KeyCode::Char('f'));
 
     let wide = render_sized(&mut d, 120, 35);
     for prefix in ["Harness · Model:", "Herdr session:"] {
@@ -643,6 +647,8 @@ fn detail_action_label_snapshots_cover_mobile_regular_and_wide_sizes() {
     for (w, h) in [(40_u16, 20_u16), (52, 24), (60, 24), (80, 24), (120, 35)] {
         let mut d = driver(demo_client().unwrap());
         key(&mut d, KeyCode::Enter);
+        // Cards open fullscreen; `f` switches to the popup these snapshots record.
+        key(&mut d, KeyCode::Char('f'));
         insta::assert_snapshot!(
             format!("detail_actions_{w}x{h}"),
             render_sized(&mut d, w, h)
@@ -714,6 +720,8 @@ fn card_detail_popup_and_fullscreen_120x35() {
     key(&mut d, KeyCode::Right);
     key(&mut d, KeyCode::Right);
     key(&mut d, KeyCode::Enter);
+    // Cards open fullscreen; `f` switches to the popup these snapshots record.
+    key(&mut d, KeyCode::Char('f'));
     insta::assert_snapshot!("card_detail_popup_120x35", render(&mut d, 120, 35));
 
     key(&mut d, KeyCode::Char('f'));
@@ -785,6 +793,8 @@ fn card_detail_history_overflow_starts_latest_and_scrolls_sections() {
     key(&mut d, KeyCode::Right);
     key(&mut d, KeyCode::Right);
     key(&mut d, KeyCode::Enter);
+    // Cards open fullscreen; `f` switches to the popup these snapshots record.
+    key(&mut d, KeyCode::Char('f'));
     insta::assert_snapshot!("card_detail_history_latest", render(&mut d, 120, 35));
 
     key(&mut d, KeyCode::Up);
@@ -1089,6 +1099,8 @@ fn awaiting_card_detail_stays_compact_when_wide() {
     key(&mut d, KeyCode::Right);
     key(&mut d, KeyCode::Down);
     key(&mut d, KeyCode::Enter);
+    // Cards open fullscreen; `f` switches to the popup these snapshots record.
+    key(&mut d, KeyCode::Char('f'));
     let output = render(&mut d, 120, 35);
     assert!(output.contains("? awaiting (agent reported done)"));
     assert!(output.contains("Harness · Model: claude · default"));

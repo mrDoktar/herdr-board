@@ -1028,8 +1028,10 @@ fn card_detail_title_close_and_toggle_actions_follow_keyboard_paths() {
         .into_iter()
         .find_map(|(p, z)| (z == Zone::Action(UiAction::ToggleDetail)).then_some(p))
         .expect("toggle title action");
-    toggle.handle(left_down(point.0, point.1));
+    // Cards open fullscreen, so the toggle switches to the popup.
     assert!(toggle.app.detail_fullscreen);
+    toggle.handle(left_down(point.0, point.1));
+    assert!(!toggle.app.detail_fullscreen);
 
     let mut close = setup_card_detail();
     render_at(&mut close, 80, 24);

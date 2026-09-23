@@ -17,7 +17,7 @@ use super::nav::{nav_delta, step_clamped};
 use super::{App, Confirm, ConfirmPurpose, DetailScrollTarget, Effect, Screen};
 
 impl App {
-    /// Open the card detail popup for `id` from a closed state.
+    /// Open the card detail for `id`, fullscreen, from a closed state.
     ///
     /// One place for the seven-field reset the two openers (`Enter` on the
     /// board, a double-click on a card) both need, including the `usize::MAX`
@@ -25,7 +25,8 @@ impl App {
     /// freshly fetched comment/run counts — see its comment for why "not yet
     /// focused anywhere" cannot just be `0`.
     pub(super) fn open_detail(&mut self, id: i64) -> Vec<Effect> {
-        self.detail_fullscreen = false;
+        // Cards open fullscreen; `f` still toggles back to the popup.
+        self.detail_fullscreen = true;
         self.detail_scroll_target = DetailScrollTarget::Comments;
         self.detail_comments_scroll = 0;
         self.detail_runs_scroll = 0;
