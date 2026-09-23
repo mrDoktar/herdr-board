@@ -314,7 +314,11 @@ Herdr schema fixture remains an upstream compatibility reference and is not edit
 
 ## 4. Column configuration
 
-Columns are pure data — created, renamed, reordered, deleted and configured from the TUI (keyboard or mouse, incl. a column-config form for system prompt / trigger / transitions / overrides). **Default board = a single `Todo` column**; the pipeline below is an optional example/template the user can apply or build by hand, not a built-in:
+Columns are pure data — created, renamed, reordered, deleted and configured from the TUI (keyboard or mouse, incl. a column-config form for system prompt / trigger / transitions / overrides). **Default board = a single `Todo` column**; the pipeline below is an optional example/template the user can apply or build by hand, not a built-in.
+The built-in `pipeline` template (`T`) lives in `crates/board-core/src/template.rs`: Todo → Spec
+(optional, Codex grill-me session) → Plan (Claude Fable, fresh session) → Execute (Claude Opus) →
+Review (Codex) → Human Review → Release (Claude Opus, opens the PR) → Done, every agent stage in a
+per-card git worktree. The TOML below shows the column format:
 
 ```toml
 [[column]]

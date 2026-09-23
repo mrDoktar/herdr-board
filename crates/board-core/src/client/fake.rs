@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::db::{ColumnTarget, ColumnWiring, Db, FinalizeEffects, FinalizeRun, BOARD_ID};
+use crate::db::{Db, FinalizeEffects, FinalizeRun, BOARD_ID};
 
 use crate::engine;
 use crate::labels::card_labels;
@@ -14,35 +14,10 @@ use crate::protocol::{
     CommentUpdateParams, DeletedResult, Event, PaneSetTitleParams, PaneSetTitleResult,
     ProjectArchiveParams, ProjectCreateParams, ProjectGetParams, ProjectListParams,
     ProjectOpenParams, ProjectOpenResult, ProjectSelectParams, ProjectSelectedResult,
-    RunActionResult, RunDoneParams, RunFocusParams, RunFocusResult, TemplateApplyParams, Trigger,
+    RunActionResult, RunDoneParams, RunFocusParams, RunFocusResult, TemplateApplyParams,
 };
 
 use super::BoardClient;
-
-// Mirrors `crates/board-daemon/src/ops/boards.rs` (`template_apply`) and
-// `crates/board-daemon/src/template.rs`: same prompts, same five columns, same
-// transitions. Duplicated here (rather than shared) because the daemon logic
-// lives in board-daemon, which board-core cannot depend on; the column
-// creation/wiring itself is shared via `Db::apply_template_columns_uow` so
-// that part cannot drift.
-const PLAN_PROMPT: &str =
-    "You are in the PLAN stage. Use /quick-planner style planning: produce a written
-implementation plan and save it under docs/plans/ (or .plans/). Do not write code.
-When finished you MUST run:
-  board comment $BOARD_CARD_ID \"Plan ready at <filepath>. <3-line summary>\"
-  board done $BOARD_CARD_ID --outcome ok";
-
-const EXECUTE_PROMPT: &str =
-    "You are in the EXECUTE stage. Implement the plan referenced in the card comments.
-Run tests. When finished:
-  board comment $BOARD_CARD_ID \"<what changed, files touched, test results>\"
-  board done $BOARD_CARD_ID --outcome ok    # or --outcome fail with reasons";
-
-const REVIEW_PROMPT: &str =
-    "You are in the REVIEW stage. Review the diff against the card description and the
-plan/execution comments. Be adversarial. Then:
-  board comment $BOARD_CARD_ID \"<verdict + findings>\"
-  board done $BOARD_CARD_ID --outcome ok    # ok = ship to human; fail = back to Execute";
 
 /// In-memory board state machine for TUI tests. Backed by an in-memory
 /// SQLite db, so CRUD/move/positions/comments behave exactly like the real
@@ -598,7 +573,7 @@ fake_methods!(db, config, params, {
     },
     "template.apply" => {
         let p: TemplateApplyParams = serde_json::from_value(params)?;
-        if p.name != "pipeline" {
+        if p.name != crate::template::PIPELINE {
             return Err(
                 crate::Error::BadRequest(format!("unknown template: {}", p.name)).into(),
             );
@@ -622,60 +597,8 @@ fake_methods!(db, config, params, {
             )
             .into());
         }
-        let todo = existing[0].id;
-        let specs = vec![
-            ColumnCreateParams {
-                name: "Plan".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Auto),
-                system_prompt: Some(PLAN_PROMPT.into()),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Execute".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Auto),
-                system_prompt: Some(EXECUTE_PROMPT.into()),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Review".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Auto),
-                system_prompt: Some(REVIEW_PROMPT.into()),
-                model_override: Some("opus".into()),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Human Review".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Manual),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Done".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Manual),
-                ..Default::default()
-            },
-        ];
-        let wiring = [
-            ColumnWiring {
-                column_index: 0,
-                on_success: Some(ColumnTarget::Created(1)),
-                on_fail: Some(ColumnTarget::Existing(todo)),
-            },
-            ColumnWiring {
-                column_index: 1,
-                on_success: Some(ColumnTarget::Created(2)),
-                on_fail: None,
-            },
-            ColumnWiring {
-                column_index: 2,
-                on_success: Some(ColumnTarget::Created(3)),
-                on_fail: Some(ColumnTarget::Created(1)),
-            },
-        ];
+        // Same columns as the daemon; the fake has no scripts folder.
+        let (specs, wiring) = crate::template::pipeline(board_id, existing[0].id, None);
         serde_json::to_value(db.apply_template_columns_uow(board_id, &specs, &wiring)?)?
     },
     "pane.set_title" => {
@@ -691,6 +614,7 @@ fake_methods!(db, config, params, {
 mod tests {
     use super::*;
     use crate::model::Column;
+    use crate::protocol::Trigger;
     use serde_json::json;
 
     fn columns(client: &mut FakeBoardClient) -> Vec<Column> {
@@ -710,29 +634,71 @@ mod tests {
         let names: Vec<&str> = cols.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             names,
-            vec!["Todo", "Plan", "Execute", "Review", "Human Review", "Done"]
+            vec![
+                "Todo",
+                "Spec",
+                "Plan",
+                "Execute",
+                "Review",
+                "Human Review",
+                "Release",
+                "Done"
+            ]
         );
 
         let by_name = |name: &str| cols.iter().find(|c| c.name == name).unwrap();
-        assert_eq!(by_name("Plan").trigger, Trigger::Auto);
-        assert_eq!(by_name("Execute").trigger, Trigger::Auto);
-        assert_eq!(by_name("Review").trigger, Trigger::Auto);
-        assert_eq!(by_name("Human Review").trigger, Trigger::Manual);
-        assert_eq!(by_name("Done").trigger, Trigger::Manual);
+        for auto in ["Spec", "Plan", "Execute", "Review", "Release"] {
+            assert_eq!(by_name(auto).trigger, Trigger::Auto, "{auto}");
+        }
+        for manual in ["Todo", "Human Review", "Done"] {
+            assert_eq!(by_name(manual).trigger, Trigger::Manual, "{manual}");
+        }
 
-        // Transitions: Plan ok->Execute, fail->Todo; Execute ok->Review;
-        // Review ok->Human Review, fail->Execute.
-        let todo = by_name("Todo").id;
-        let execute = by_name("Execute").id;
-        let review = by_name("Review").id;
-        let human = by_name("Human Review").id;
+        // Spec and Plan: ok -> next, fail -> Todo; Execute ok -> Review;
+        // Review ok -> Human Review, fail -> Execute; Release ok -> Done,
+        // fail -> Human Review.
+        let id = |name: &str| Some(by_name(name).id);
+        let wiring = |name: &str| {
+            let c = by_name(name);
+            (c.on_success_column_id, c.on_fail_column_id)
+        };
+        assert_eq!(wiring("Spec"), (id("Plan"), id("Todo")));
+        assert_eq!(wiring("Plan"), (id("Execute"), id("Todo")));
+        assert_eq!(wiring("Execute"), (id("Review"), None));
+        assert_eq!(wiring("Review"), (id("Human Review"), id("Execute")));
+        assert_eq!(wiring("Release"), (id("Done"), id("Human Review")));
 
-        assert_eq!(by_name("Plan").on_success_column_id, Some(execute));
-        assert_eq!(by_name("Plan").on_fail_column_id, Some(todo));
-        assert_eq!(by_name("Execute").on_success_column_id, Some(review));
-        assert_eq!(by_name("Execute").on_fail_column_id, None);
-        assert_eq!(by_name("Review").on_success_column_id, Some(human));
-        assert_eq!(by_name("Review").on_fail_column_id, Some(execute));
+        // Per-stage agents, as on the board this template was taken from.
+        let agent = |name: &str| {
+            let c = by_name(name);
+            (
+                c.harness_override.as_deref(),
+                c.model_override.as_deref(),
+                c.effort_override.as_deref(),
+            )
+        };
+        assert_eq!(
+            agent("Spec"),
+            (Some("codex"), Some("gpt-6-astra"), Some("xhigh"))
+        );
+        assert_eq!(
+            agent("Plan"),
+            (Some("claude"), Some("fable"), Some("xhigh"))
+        );
+        assert_eq!(
+            agent("Execute"),
+            (Some("claude"), Some("claude-opus-5-5"), Some("xhigh"))
+        );
+        assert_eq!(
+            agent("Review"),
+            (Some("codex"), Some("gpt-6-sol"), Some("xhigh"))
+        );
+        assert_eq!(
+            agent("Release"),
+            (Some("claude"), Some("claude-opus-5-5"), Some("medium"))
+        );
+        assert!(by_name("Plan").fresh_session);
+        assert_eq!(by_name("Release").timeout_minutes, Some(60));
     }
 
     #[test]

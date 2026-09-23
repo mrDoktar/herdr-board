@@ -31,6 +31,7 @@ pub mod pi_catalog;
 pub mod prompt;
 pub mod protocol;
 pub mod scope;
+pub mod template;
 
 pub use engine::ValidationError;
 

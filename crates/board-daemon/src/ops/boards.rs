@@ -1,8 +1,8 @@
 use super::*;
-use board_core::db::{ColumnTarget, ColumnWiring, BOARD_ID};
+use board_core::db::BOARD_ID;
 use board_core::protocol::{
     BoardArchiveParams, BoardChangedReason, BoardCreateParams, BoardGetParams, BoardListParams,
-    BoardSelectParams, ColumnCreateParams, TemplateApplyParams, Trigger,
+    BoardSelectParams, TemplateApplyParams,
 };
 pub(super) fn daemon_status(d: &Arc<Daemon>) -> Result<Value> {
     let (active_runs, queued_runs) = {
@@ -110,30 +110,11 @@ pub(super) fn board_get(d: &Arc<Daemon>, p: BoardGetParams) -> Result<Value> {
     Ok(json!(board_snapshot(d, p.board_id.unwrap_or(BOARD_ID))?))
 }
 
-const PLAN_PROMPT: &str =
-    "You are in the PLAN stage. Use /quick-planner style planning: produce a written
-implementation plan and save it under docs/plans/ (or .plans/). Do not write code.
-When finished you MUST run:
-  board comment $BOARD_CARD_ID \"Plan ready at <filepath>. <3-line summary>\"
-  board done $BOARD_CARD_ID --outcome ok";
-
-const EXECUTE_PROMPT: &str =
-    "You are in the EXECUTE stage. Implement the plan referenced in the card comments.
-Run tests. When finished:
-  board comment $BOARD_CARD_ID \"<what changed, files touched, test results>\"
-  board done $BOARD_CARD_ID --outcome ok    # or --outcome fail with reasons";
-
-const REVIEW_PROMPT: &str =
-    "You are in the REVIEW stage. Review the diff against the card description and the
-plan/execution comments. Be adversarial. Then:
-  board comment $BOARD_CARD_ID \"<verdict + findings>\"
-  board done $BOARD_CARD_ID --outcome ok    # ok = ship to human; fail = back to Execute";
-
 /// Apply the pipeline template as one DB unit of work. Preparation and the
 /// post-commit event are outside the transaction; no dispatcher wake is needed
 /// because a template creates no cards or runs.
 pub(super) fn template_apply(d: &Arc<Daemon>, p: TemplateApplyParams) -> Result<Value> {
-    if p.name != "pipeline" {
+    if p.name != board_core::template::PIPELINE {
         return Err(Error::BadRequest(format!("unknown template: {}", p.name)));
     }
     let board_id = p.board_id.unwrap_or(BOARD_ID);
@@ -165,60 +146,11 @@ pub(super) fn template_apply(d: &Arc<Daemon>, p: TemplateApplyParams) -> Result<
                     .into(),
             ));
         }
-        let todo = existing[0].id;
-        let specs = vec![
-            ColumnCreateParams {
-                name: "Plan".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Auto),
-                system_prompt: Some(PLAN_PROMPT.into()),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Execute".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Auto),
-                system_prompt: Some(EXECUTE_PROMPT.into()),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Review".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Auto),
-                system_prompt: Some(REVIEW_PROMPT.into()),
-                model_override: Some("opus".into()),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Human Review".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Manual),
-                ..Default::default()
-            },
-            ColumnCreateParams {
-                name: "Done".into(),
-                board_id: Some(board_id),
-                trigger: Some(Trigger::Manual),
-                ..Default::default()
-            },
-        ];
-        let wiring = [
-            ColumnWiring {
-                column_index: 0,
-                on_success: Some(ColumnTarget::Created(1)),
-                on_fail: Some(ColumnTarget::Existing(todo)),
-            },
-            ColumnWiring {
-                column_index: 1,
-                on_success: Some(ColumnTarget::Created(2)),
-                on_fail: None,
-            },
-            ColumnWiring {
-                column_index: 2,
-                on_success: Some(ColumnTarget::Created(3)),
-                on_fail: Some(ColumnTarget::Created(1)),
-            },
-        ];
+        let (specs, wiring) = board_core::template::pipeline(
+            board_id,
+            existing[0].id,
+            d.config.template_scripts_dir.as_deref(),
+        );
         db.apply_template_columns_uow(board_id, &specs, &wiring)?
     };
     d.emit_changed_board(BoardChangedReason::ColumnChanged, board_id, None, None);

@@ -968,7 +968,16 @@ fn template_apply_on_empty_board() {
     let mut c = td.client();
     let cols = c.template_apply("pipeline").unwrap();
     let names: Vec<&str> = cols.iter().map(|x| x.name.as_str()).collect();
-    for expected in ["Todo", "Plan", "Execute", "Review", "Human Review", "Done"] {
+    for expected in [
+        "Todo",
+        "Spec",
+        "Plan",
+        "Execute",
+        "Review",
+        "Human Review",
+        "Release",
+        "Done",
+    ] {
         assert!(names.contains(&expected), "missing column {expected}");
     }
     let find = |n: &str| cols.iter().find(|x| x.name == n).unwrap();
@@ -979,7 +988,7 @@ fn template_apply_on_empty_board() {
         Some(find("Human Review").id)
     );
     assert_eq!(find("Review").on_fail_column_id, Some(find("Execute").id));
-    assert_eq!(find("Review").model_override.as_deref(), Some("opus"));
+    assert_eq!(find("Review").model_override.as_deref(), Some("gpt-6-sol"));
 }
 
 #[test]

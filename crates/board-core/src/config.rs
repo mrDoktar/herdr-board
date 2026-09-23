@@ -87,6 +87,12 @@ pub struct Config {
     /// `BOARD_CARD_ID`, `BOARD_BOARD_ID`, `BOARD_COLUMN` and `BOARD_BIN`.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub on_enter: HashMap<String, String>,
+    /// Folder holding the board's helper scripts (`review-env.sh`). The
+    /// `pipeline` template's Review and Release stages call `review-env.sh`
+    /// from here to start and stop a card's test server; unset, those steps
+    /// are left out of the prompts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template_scripts_dir: Option<PathBuf>,
     /// Config-defined harnesses keyed by name (`[harness.NAME]`).
     #[serde(default)]
     pub harness: HashMap<String, HarnessDef>,
@@ -166,6 +172,7 @@ impl Default for Config {
             serial_per_space: default_serial_per_space(),
             idle_grace_seconds: default_idle_grace_seconds(),
             on_enter: HashMap::new(),
+            template_scripts_dir: None,
             harness: HashMap::new(),
             pi_agent_dir: None,
             codex_home: None,

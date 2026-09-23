@@ -46,6 +46,15 @@ Done = 'bash ~/Code/herdr-board/scripts/done-cleanup.sh card "$BOARD_CARD_ID"'
 `scripts/done-cleanup.sh` stops the card's test server, closes its agent tab and its own
 workspace, and removes its worktree (the branch stays).
 
+`template_scripts_dir` is the folder that holds `review-env.sh` (normally this repo's `scripts/`).
+The `pipeline` template (`T` on an empty board) writes it into the Review and Release prompts, so
+Review starts the card's test server and Release stops it. Leave it out and those two steps are not
+in the prompts. It only affects boards the template is applied to after the change:
+
+```toml
+template_scripts_dir = "/path/to/herdr-board/scripts"
+```
+
 Custom harness prompts are delivered through `$BOARD_PROMPT`. The placeholders `{model}`, `{effort}`,
 and `{permission_mode}` are available in `argv`. Optional keys `models`, `efforts`, and
 `permission_modes` declare the harness's capability catalog.

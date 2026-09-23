@@ -1,7 +1,7 @@
 use board_core::client::BoardClient;
 use board_core::protocol::{
-    CardCreateParams, CardMoveParams, CardStatus, ColumnCreateParams, RunOutcome, SpaceKind,
-    Trigger,
+    CardCreateParams, CardMoveParams, CardStatus, ColumnCreateParams, ColumnUpdateParams, Patch,
+    RunOutcome, SpaceKind, Trigger,
 };
 
 use super::{col, fake_card, poll, todo_id, TestDaemon};
@@ -329,6 +329,21 @@ fn scoped_template_dispatches_and_transitions_with_local_spawner() {
         .find(|c| c.name == "Human Review")
         .unwrap()
         .id;
+    // The template pins real agents on its stages; let the card's fake
+    // harness run Execute and Review instead.
+    for stage in ["Execute", "Review"] {
+        let id = columns.iter().find(|c| c.name == stage).unwrap().id;
+        client
+            .column_update(&ColumnUpdateParams {
+                id,
+                harness_override: Patch::Clear,
+                model_override: Patch::Clear,
+                effort_override: Patch::Clear,
+                permission_override: Patch::Clear,
+                ..Default::default()
+            })
+            .unwrap();
+    }
     let card = client
         .card_create(&CardCreateParams {
             board_id: Some(board.id),

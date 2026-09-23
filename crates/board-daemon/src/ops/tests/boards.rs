@@ -232,7 +232,7 @@ fn template_and_scheduler_operate_on_scoped_board() {
     )
     .unwrap();
     let snapshot = handle_request(&d, "board.get", json!({"board_id":board_id})).unwrap();
-    assert_eq!(snapshot["columns"].as_array().unwrap().len(), 6);
+    assert_eq!(snapshot["columns"].as_array().unwrap().len(), 8);
     let execute = snapshot["columns"]
         .as_array()
         .unwrap()
