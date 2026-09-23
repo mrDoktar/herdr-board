@@ -334,6 +334,17 @@ impl Driver {
                 self.mutate(r, After::CardThenBoard(id));
             }
             Effect::FocusRun(card_id, run_id) => self.focus_run(card_id, run_id),
+            Effect::FocusLatestRun(card_id) => {
+                let r = self.client.card_get(card_id);
+                let Some(detail) = self.guard(r) else {
+                    return;
+                };
+                // Runs come oldest first.
+                match detail.runs.last() {
+                    Some(run) => self.focus_run(card_id, run.id),
+                    None => self.app.set_toast("this card has no run to jump to", true),
+                }
+            }
             Effect::EditFocusedTextArea => self.edit_focused(),
             Effect::LoadFormOptions => self.load_form_options(),
             Effect::SetPaneTitle(filter) => self.set_pane_title(filter),

@@ -11,9 +11,13 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::Result;
 use board_core::client::{BoardClient, UnixClient};
 use board_core::protocol::{BoardSnapshot, Event};
-use crossterm::event::{DisableMouseCapture, EnableMouseCapture, Event as CtEvent, KeyEventKind};
+use crossterm::event::{
+    DisableMouseCapture, EnableMouseCapture, Event as CtEvent, KeyEventKind,
+    KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+};
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    disable_raw_mode, enable_raw_mode, supports_keyboard_enhancement, EnterAlternateScreen,
+    LeaveAlternateScreen,
 };
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
@@ -95,11 +99,24 @@ fn run_driver(driver: &mut Driver) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     crossterm::execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    // Where the terminal speaks the kitty keyboard protocol, ask for
+    // unambiguous key codes so modified keys like Ctrl+Enter reach the board.
+    // Elsewhere Ctrl+Enter arrives as a plain Enter.
+    let enhanced_keys = matches!(supports_keyboard_enhancement(), Ok(true));
+    if enhanced_keys {
+        crossterm::execute!(
+            stdout,
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+        )?;
+    }
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     let res = event_loop(driver, &mut terminal, &rx);
 
+    if enhanced_keys {
+        crossterm::execute!(terminal.backend_mut(), PopKeyboardEnhancementFlags)?;
+    }
     disable_raw_mode()?;
     crossterm::execute!(
         terminal.backend_mut(),

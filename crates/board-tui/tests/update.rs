@@ -4,6 +4,8 @@
 #[path = "update/helpers.rs"]
 mod helpers;
 
+#[path = "update/ai_console.rs"]
+mod ai_console;
 #[path = "update/detail.rs"]
 mod detail;
 #[path = "update/editor.rs"]

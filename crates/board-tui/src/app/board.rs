@@ -1,6 +1,6 @@
 use board_core::engine::{validate_column_delete, ValidationError};
 use board_core::protocol::CardMoveParams;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::forms::Form;
 
@@ -75,6 +75,12 @@ pub(super) fn board_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
         KeyCode::Char('O') => return open_reorder_card_mode(app),
         KeyCode::Char('H') => return shove_card(app, -1),
         KeyCode::Char('L') => return shove_card(app, 1),
+        // Ctrl+Enter only arrives distinct from Enter where the terminal
+        // supports the kitty keyboard protocol; `o` works everywhere.
+        KeyCode::Enter if k.modifiers.contains(KeyModifiers::CONTROL) => {
+            return focus_latest_run(app);
+        }
+        KeyCode::Char('o') => return focus_latest_run(app),
         KeyCode::Enter => {
             if let Some(id) = app.selected_card_id() {
                 return app.open_detail(id);
@@ -98,6 +104,13 @@ pub(super) fn set_card_filter(app: &mut App, filter: CardFilter) -> Vec<Effect> 
     app.sel_card = 0;
     app.clamp_card();
     vec![Effect::SetPaneTitle(app.card_filter)]
+}
+
+/// Jump straight to the selected card's AI console: its newest run's pane.
+fn focus_latest_run(app: &mut App) -> Vec<Effect> {
+    app.selected_card_id()
+        .map(|id| vec![Effect::FocusLatestRun(id)])
+        .unwrap_or_default()
 }
 
 fn archive_selected_card(app: &mut App) -> Vec<Effect> {

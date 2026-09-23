@@ -34,6 +34,8 @@ const EXPECTED: &[(Screen, &str, &str)] = &[
     (Screen::Board, "O", "reorder card in column"),
     (Screen::Board, "H / L", "shove card left / right"),
     (Screen::Board, "Enter", "card detail"),
+    (Screen::Board, "o / C-Enter", "jump to AI console"),
+    (Screen::Board, "C/A-dblclk", "AI console (mouse)"),
     (Screen::Board, "T", "apply template (empty)"),
     (Screen::Board, "r / R", "refresh board"),
     (Screen::Board, "?", "this help (any screen)"),
@@ -111,8 +113,8 @@ const EXPECTED: &[(Screen, &str, &str)] = &[
 fn contract_freezes_the_exact_72_row_interaction_table() {
     assert_eq!(
         HELP_KEYS.len(),
-        90,
-        "the interaction contract must stay at exactly 90 bindings"
+        92,
+        "the interaction contract must stay at exactly 92 bindings"
     );
     assert_eq!(EXPECTED.len(), HELP_KEYS.len());
     for (idx, (expected, actual)) in EXPECTED.iter().zip(HELP_KEYS.iter()).enumerate() {

@@ -94,6 +94,14 @@ pub(super) fn on_mouse(app: &mut App, m: MouseEvent) -> Vec<Effect> {
                 app.last_click = Some((m.column, m.row, app.now_ms));
                 if dbl {
                     if let Some(id) = app.selected_card_id() {
+                        // Ctrl/Alt+double-click jumps to the AI console like
+                        // `o`. Alt too, because macOS terminals often turn
+                        // Ctrl+click into a right click.
+                        if m.modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                        {
+                            return vec![Effect::FocusLatestRun(id)];
+                        }
                         return app.open_detail(id);
                     }
                 }

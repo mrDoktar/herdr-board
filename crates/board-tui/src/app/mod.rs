@@ -454,7 +454,13 @@ fn on_key(app: &mut App, k: KeyEvent) -> Vec<Effect> {
     // open "move column" unprompted. `Shift` stays allowed (it is the
     // natural modifier of the uppercase letters the board binds, and the
     // click path synthesizes `Char('M')` with `SHIFT`).
+    // The one exception outside the forms: Ctrl+Enter on the board (jump to
+    // the AI console), which no terminal produces by accident.
+    let board_ctrl_enter = app.screen == Screen::Board
+        && k.code == KeyCode::Enter
+        && k.modifiers == KeyModifiers::CONTROL;
     if !matches!(app.screen, Screen::CardForm | Screen::ColumnForm)
+        && !board_ctrl_enter
         && k.modifiers.intersects(
             KeyModifiers::CONTROL
                 | KeyModifiers::ALT

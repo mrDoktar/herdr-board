@@ -44,6 +44,9 @@ pub enum Effect {
     /// Duplicate a card: the daemon creates an idle copy directly below the
     /// original, never dispatching a run.
     CardDuplicate(i64),
+    /// Jump to the Herdr pane of the card's newest run (fetched via
+    /// `card.get`), like `o` on that run in the card detail.
+    FocusLatestRun(i64),
     /// Assign the card's GitHub issue to the signed-in user (`assign`) or
     /// unassign them (`gh`), then add or remove the card's `mine` tag.
     SetIssueMine {
