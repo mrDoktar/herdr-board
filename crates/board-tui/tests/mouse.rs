@@ -1470,7 +1470,11 @@ fn a_card_created_through_the_form_can_be_dragged_at_once() {
     }
     render_at(&mut d, w, h);
     let zones = hit_zones(&d, w, h);
-    let (sx, sy) = zones.iter().find(|(_, z)| *z == Zone::BarSave).expect("save").0;
+    let (sx, sy) = zones
+        .iter()
+        .find(|(_, z)| *z == Zone::BarSave)
+        .expect("save")
+        .0;
     d.handle(left_down(sx, sy));
     d.handle(mouse(MouseEventKind::Up(MouseButton::Left), sx, sy));
     assert_eq!(d.app.screen, Screen::Board);
@@ -1482,9 +1486,20 @@ fn a_card_created_through_the_form_can_be_dragged_at_once() {
     let id = d.app.cards_of(d.app.col_id_at(0).unwrap())[card_idx].id;
     let target = layout.cols.iter().find(|c| c.idx == 1).unwrap().rect;
     d.handle(left_down(r.x + 1, r.y + 1));
-    d.handle(mouse(MouseEventKind::Drag(MouseButton::Left), target.x + 2, target.y + 3));
-    d.handle(mouse(MouseEventKind::Up(MouseButton::Left), target.x + 2, target.y + 3));
+    d.handle(mouse(
+        MouseEventKind::Drag(MouseButton::Left),
+        target.x + 2,
+        target.y + 3,
+    ));
+    d.handle(mouse(
+        MouseEventKind::Up(MouseButton::Left),
+        target.x + 2,
+        target.y + 3,
+    ));
 
     let next_column = d.app.col_id_at(1).unwrap();
-    assert!(d.app.cards_of(next_column).iter().any(|c| c.id == id), "the new card moved");
+    assert!(
+        d.app.cards_of(next_column).iter().any(|c| c.id == id),
+        "the new card moved"
+    );
 }

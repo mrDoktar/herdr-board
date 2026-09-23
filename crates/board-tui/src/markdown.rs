@@ -12,7 +12,9 @@ use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, T
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-const INLINE_CODE: Style = Style::new().fg(Color::Rgb(240, 180, 90)).bg(Color::Rgb(45, 45, 45));
+const INLINE_CODE: Style = Style::new()
+    .fg(Color::Rgb(240, 180, 90))
+    .bg(Color::Rgb(45, 45, 45));
 const CODE_BLOCK: Style = Style::new().fg(Color::Rgb(150, 220, 150));
 const GUTTER: Style = Style::new().fg(Color::DarkGray);
 const LINK: Style = Style::new()
@@ -25,7 +27,9 @@ const MARKER: Style = Style::new().fg(Color::LightCyan);
 fn heading_style(level: HeadingLevel) -> Style {
     let base = Style::new().add_modifier(Modifier::BOLD);
     match level {
-        HeadingLevel::H1 => base.fg(Color::LightMagenta).add_modifier(Modifier::UNDERLINED),
+        HeadingLevel::H1 => base
+            .fg(Color::LightMagenta)
+            .add_modifier(Modifier::UNDERLINED),
         HeadingLevel::H2 => base.fg(Color::LightMagenta),
         _ => base.fg(Color::LightCyan),
     }
@@ -191,12 +195,14 @@ impl Renderer {
             Tag::Strong => self.push_style(Style::new().add_modifier(Modifier::BOLD)),
             Tag::Strikethrough => self.push_style(Style::new().add_modifier(Modifier::CROSSED_OUT)),
             Tag::Link { dest_url, .. } => {
-                self.link_targets.push((dest_url.to_string(), self.spans.len()));
+                self.link_targets
+                    .push((dest_url.to_string(), self.spans.len()));
                 self.push_style(LINK);
             }
             Tag::Image { dest_url, .. } => {
                 self.text("[image: ", GUTTER);
-                self.link_targets.push((dest_url.to_string(), self.spans.len()));
+                self.link_targets
+                    .push((dest_url.to_string(), self.spans.len()));
             }
             _ => {}
         }
@@ -241,8 +247,10 @@ impl Renderer {
             TagEnd::Link => {
                 self.pop_style();
                 if let Some((url, first_span)) = self.link_targets.pop() {
-                    let label: String =
-                        self.spans[first_span..].iter().map(|s| s.content.as_ref()).collect();
+                    let label: String = self.spans[first_span..]
+                        .iter()
+                        .map(|s| s.content.as_ref())
+                        .collect();
                     let bare = url.trim_start_matches("mailto:");
                     if !url.is_empty() && label != url && label != bare {
                         self.text(&format!(" ({url})"), LINK_TARGET);
@@ -301,7 +309,10 @@ impl Renderer {
         let first = self.prefix(true);
         let rest = self.prefix(false);
         // Only the first row of an item shows its marker.
-        self.item_marker = self.item_marker.take().map(|m| " ".repeat(m.chars().count()));
+        self.item_marker = self
+            .item_marker
+            .take()
+            .map(|m| " ".repeat(m.chars().count()));
         let first_w: usize = first.iter().map(Span::width).sum();
         let rest_w: usize = rest.iter().map(Span::width).sum();
         let rows = wrap(
@@ -428,7 +439,10 @@ mod tests {
     fn headings_lose_their_hashes_and_are_bold() {
         let lines = render("# Title\n\nBody", 40);
         assert_eq!(plain(&lines), ["Title", "", "Body"]);
-        assert!(span_with(&lines, "Title").style.add_modifier.contains(Modifier::BOLD));
+        assert!(span_with(&lines, "Title")
+            .style
+            .add_modifier
+            .contains(Modifier::BOLD));
     }
 
     #[test]
@@ -450,7 +464,14 @@ mod tests {
         let lines = render("- one two three four\n- b\n\n1. first\n2. second", 12);
         assert_eq!(
             plain(&lines),
-            ["• one two", "  three four", "• b", "", "1. first", "2. second"]
+            [
+                "• one two",
+                "  three four",
+                "• b",
+                "",
+                "1. first",
+                "2. second"
+            ]
         );
     }
 
@@ -469,8 +490,14 @@ mod tests {
     #[test]
     fn links_show_their_target() {
         let lines = render("See [docs](https://x.dev) and <https://y.dev>", 60);
-        assert_eq!(plain(&lines), ["See docs (https://x.dev) and https://y.dev"]);
-        assert!(span_with(&lines, "docs").style.add_modifier.contains(Modifier::UNDERLINED));
+        assert_eq!(
+            plain(&lines),
+            ["See docs (https://x.dev) and https://y.dev"]
+        );
+        assert!(span_with(&lines, "docs")
+            .style
+            .add_modifier
+            .contains(Modifier::UNDERLINED));
     }
 
     #[test]

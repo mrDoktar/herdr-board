@@ -586,7 +586,11 @@ fn fallback_of(argv: &[String]) -> Option<&str> {
 fn claude_on_fable_falls_back_to_opus_5_5() {
     for model in ["fable", "claude-fable-5-1"] {
         let argv = claude_launch_with_model(model);
-        assert_eq!(fallback_of(&argv), Some("claude-opus-5-5"), "{model}: {argv:?}");
+        assert_eq!(
+            fallback_of(&argv),
+            Some("claude-opus-5-5"),
+            "{model}: {argv:?}"
+        );
     }
     let legacy = claude_argv(
         &EffectiveSettings {

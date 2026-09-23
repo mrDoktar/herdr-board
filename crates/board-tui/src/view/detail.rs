@@ -346,8 +346,9 @@ fn detail_section_heights(
     comments_active: bool,
 ) -> ([u16; 3], u16) {
     // `width` is the section width minus one; the text sits inside borders.
-    let desc_lines =
-        (crate::markdown::render(&detail.card.description, width.saturating_sub(1)).len() as u16).max(1);
+    let desc_lines = (crate::markdown::render(&detail.card.description, width.saturating_sub(1))
+        .len() as u16)
+        .max(1);
     let comment_lines = comment_wrapped_rows(detail, width) as u16;
     let run_lines = (detail.runs.len() as u16).max(1);
     let bar_row = if comments_active && !detail.comments.is_empty() {
@@ -959,7 +960,9 @@ pub(super) fn draw_detail(app: &App, f: &mut Frame, area: Rect) {
 
 /// The rows inside the Description section's border.
 pub fn description_viewport(layout: &DetailLayout) -> Rect {
-    Block::default().borders(Borders::ALL).inner(layout.description)
+    Block::default()
+        .borders(Borders::ALL)
+        .inner(layout.description)
 }
 
 /// The description rendered as markdown, scrolled by `detail_desc_scroll`;
@@ -975,7 +978,13 @@ fn draw_description(app: &App, f: &mut Frame, description: &str, area: Rect) {
     let body = if lines.is_empty() {
         Paragraph::new("(no description)").style(Style::default().fg(Color::Gray))
     } else {
-        Paragraph::new(lines.into_iter().skip(offset).take(visible).collect::<Vec<_>>())
+        Paragraph::new(
+            lines
+                .into_iter()
+                .skip(offset)
+                .take(visible)
+                .collect::<Vec<_>>(),
+        )
     };
     f.render_widget(body.block(section_block(&title, false)), area);
 }

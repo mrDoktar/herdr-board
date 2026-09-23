@@ -642,7 +642,10 @@ fn board_with_card(status: CardStatus, session_id: Option<&str>) -> String {
 fn console_button_shows_on_a_card_that_ran_and_went_back_to_idle_or_queued() {
     for status in [CardStatus::Idle, CardStatus::Queued] {
         let screen = board_with_card(status, Some("conversation-1"));
-        assert!(screen.contains("[▶]"), "{status:?} card with a conversation:\n{screen}");
+        assert!(
+            screen.contains("[▶]"),
+            "{status:?} card with a conversation:\n{screen}"
+        );
     }
 }
 
@@ -650,6 +653,9 @@ fn console_button_shows_on_a_card_that_ran_and_went_back_to_idle_or_queued() {
 fn console_button_stays_hidden_on_a_card_that_never_ran() {
     for status in [CardStatus::Idle, CardStatus::Queued] {
         let screen = board_with_card(status, None);
-        assert!(!screen.contains("[▶]"), "{status:?} card without a conversation:\n{screen}");
+        assert!(
+            !screen.contains("[▶]"),
+            "{status:?} card without a conversation:\n{screen}"
+        );
     }
 }

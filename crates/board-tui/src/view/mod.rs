@@ -307,9 +307,8 @@ mod layout;
 mod overlays;
 
 pub use detail::{
-    description_viewport,
     comment_row_spans, comment_wrapped_rows, comments_action_bar_shown, comments_viewport,
-    detail_layout, detail_toggle_rect, runs_viewport_height, DetailLayout,
+    description_viewport, detail_layout, detail_toggle_rect, runs_viewport_height, DetailLayout,
 };
 pub use layout::{board_layout, BoardLayout, ColLayout, CompactHeader, ScrollInfo};
 pub use overlays::{

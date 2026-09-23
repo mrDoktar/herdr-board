@@ -646,14 +646,17 @@ fn superseded_card_panes(
 ) -> Vec<String> {
     let is_reclaimable = |pane: &PaneInfo| reclaimable_ids.iter().any(|id| id == &pane.pane_id);
     let mut tabs: BTreeMap<&str, Vec<&PaneInfo>> = BTreeMap::new();
-    for pane in panes.iter().filter(|pane| {
-        pane.workspace_id == owned.workspace_id && pane.tab_id != owned.tab_id
-    }) {
+    for pane in panes
+        .iter()
+        .filter(|pane| pane.workspace_id == owned.workspace_id && pane.tab_id != owned.tab_id)
+    {
         tabs.entry(pane.tab_id.as_str()).or_default().push(pane);
     }
     tabs.into_values()
         .filter(|tab_panes| {
-            tab_panes.iter().all(|pane| is_reclaimable(pane) && pane.pane_id != owned.pane_id)
+            tab_panes
+                .iter()
+                .all(|pane| is_reclaimable(pane) && pane.pane_id != owned.pane_id)
         })
         .flatten()
         .map(|pane| pane.pane_id.clone())

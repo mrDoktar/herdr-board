@@ -89,7 +89,8 @@ impl App {
         let viewport = crate::view::description_viewport(&layout);
         let total = crate::markdown::render(&detail.card.description, viewport.width).len();
         let max = total.saturating_sub((viewport.height as usize).max(1));
-        self.detail_desc_scroll = (self.detail_desc_scroll.min(max) as isize + delta).clamp(0, max as isize) as usize;
+        self.detail_desc_scroll =
+            (self.detail_desc_scroll.min(max) as isize + delta).clamp(0, max as isize) as usize;
     }
 
     /// Whether the focused comment can be edited/deleted: system comments are
