@@ -110,7 +110,8 @@ for card in cards:
 PY
 )" || fail "could not work out what to sync"
 
-field() { python3 -c 'import json,sys; print(json.loads(sys.argv[1])[int(sys.argv[2])])' "$1" "$2"; }
+# Field $2 of the JSON array $1: strings and numbers as they are, lists as JSON.
+field() { python3 -c 'import json,sys; v = json.loads(sys.argv[1])[int(sys.argv[2])]; print(v if isinstance(v, (str, int)) else json.dumps(v))' "$1" "$2"; }
 
 # Each tag in the JSON list at $1 becomes one `--tag <tag>` argument.
 tag_args() { python3 -c 'import json,sys; [print(f"--tag\n{t}") for t in json.loads(sys.argv[1])]' "$1"; }
@@ -124,14 +125,14 @@ while IFS= read -r line; do
       tags=(); while IFS= read -r a; do tags+=("$a"); done < <(tag_args "$(field "$line" 4)")
       b card create --title "$(field "$line" 2)" --description "$(field "$line" 3)" \
         --column "$column" --harness claude --space-kind new-workspace --space-ref "issue-$number" \
-        --space-cwd "$cwd" "${tags[@]}" >/dev/null || fail "could not create the card for issue #$number"
+        --space-cwd "$cwd" ${tags[@]+"${tags[@]}"} >/dev/null || fail "could not create the card for issue #$number"
       echo "added #$number"
       added=$((added + 1))
       ;;
     tag)
       card="$(field "$line" 1)" number="$(field "$line" 2)"
       tags=(); while IFS= read -r a; do tags+=("$a"); done < <(tag_args "$(field "$line" 3)")
-      b card edit "$card" "${tags[@]}" >/dev/null || fail "could not tag card $card (issue #$number)"
+      b card edit "$card" ${tags[@]+"${tags[@]}"} >/dev/null || fail "could not tag card $card (issue #$number)"
       echo "tagged card $card (issue #$number): $(field "$line" 3)"
       tagged=$((tagged + 1))
       ;;
