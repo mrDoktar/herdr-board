@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Cards have free-form tags (`card.create`/`card.update` `tags`, CLI `--tag` and `--clear-tags`, schema v16).
+- `t` on the board cycles the Todo column between all GitHub issue cards, the ones ready for an agent, and yours. `scripts/issue-sync.sh` now syncs every open issue and tags each card `github`, plus `ready-for-agent` and `mine` when they apply; it removes a Todo card when its issue is closed.
+
 ### Fixed
 
 - [#121](https://github.com/nelsonPires5/herdr-board/pull/121) fix: New cards default to the workspace and folder you opened the board from, and the cwd field is editable for workspace cards.
