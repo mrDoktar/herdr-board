@@ -623,3 +623,33 @@ fn comment_row_spans_sum_equals_comment_wrapped_rows() {
         }
     }
 }
+
+// -- [▶] console button ------------------------------------------------------
+
+/// One card in the first column with `status` and, optionally, a harness
+/// conversation id, drawn at a wide size.
+fn board_with_card(status: CardStatus, session_id: Option<&str>) -> String {
+    let mut c = FakeBoardClient::new().unwrap();
+    let todo = c.board_get().unwrap().columns[0].id;
+    c.card_create(&card("Console fixture", todo)).unwrap();
+    let mut snapshot = c.board_get().unwrap();
+    snapshot.cards[0].status = status;
+    snapshot.cards[0].session_id = session_id.map(str::to_string);
+    board_tui::testkit::draw(&App::new(snapshot), 120, 30)
+}
+
+#[test]
+fn console_button_shows_on_a_card_that_ran_and_went_back_to_idle_or_queued() {
+    for status in [CardStatus::Idle, CardStatus::Queued] {
+        let screen = board_with_card(status, Some("conversation-1"));
+        assert!(screen.contains("[▶]"), "{status:?} card with a conversation:\n{screen}");
+    }
+}
+
+#[test]
+fn console_button_stays_hidden_on_a_card_that_never_ran() {
+    for status in [CardStatus::Idle, CardStatus::Queued] {
+        let screen = board_with_card(status, None);
+        assert!(!screen.contains("[▶]"), "{status:?} card without a conversation:\n{screen}");
+    }
+}

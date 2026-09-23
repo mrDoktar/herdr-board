@@ -505,15 +505,19 @@ fn draw_compact_header(app: &App, f: &mut Frame, header: &CompactHeader) {
 
 /// A `[▶]` on the top border of a card that has run: one click jumps to its
 /// AI console, like `o` (a modifier+click would not survive the terminal).
+/// The status alone is not enough: a card that ran and then went back to
+/// `idle` (Done) or `queued` (waiting for its next stage) still has a console,
+/// and its harness conversation id says so.
 fn draw_console_button(app: &App, f: &mut Frame, card: &Card, r: Rect, background: Color) {
-    let has_run = matches!(
-        card.status,
-        CardStatus::Running
-            | CardStatus::Blocked
-            | CardStatus::Failed
-            | CardStatus::Awaiting
-            | CardStatus::Done
-    );
+    let has_run = card.session_id.is_some()
+        || matches!(
+            card.status,
+            CardStatus::Running
+                | CardStatus::Blocked
+                | CardStatus::Failed
+                | CardStatus::Awaiting
+                | CardStatus::Done
+        );
     if card.archived_at.is_some() || !has_run || r.width < 10 {
         return;
     }
