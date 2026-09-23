@@ -123,7 +123,8 @@ prefix is `ctrl+a`, it is `Ctrl+A Shift+K`). Do not reuse `prefix+k` — it is H
 `focus_pane_up` by default.
 
 To open the board as a tab (or `split` / `zoomed`) instead of an overlay, run the launcher
-directly with `HERDR_BOARD_PLACEMENT` set:
+directly with `HERDR_BOARD_PLACEMENT` set. The new tab is brought to the front, and pressing
+the key again just focuses the board (only an overlay closes on a repeat press):
 
 ```toml
 command = "HERDR_BOARD_PLACEMENT=tab bash <plugin dir>/scripts/open-board.sh"

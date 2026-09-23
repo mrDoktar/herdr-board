@@ -3,11 +3,13 @@
 # and a herdr keybinding (`[[keys.command]]` with `type = "shell"`). Mirrors
 # herdr-file-viewer's launcher: "open-or-focus, toggle off on repeat".
 #
-#   - no board pane in the current workspace     -> open the overlay (focused)
-#   - a board pane exists but isn't focused        -> focus it
-#   - the focused pane IS the board pane           -> close it (herdr has no
-#                                                     hide-without-close; reopening
-#                                                     is cheap — the TUI refetches)
+#   - no board pane in the current workspace     -> open it (focused; a tab is
+#                                                     brought to the front too)
+#   - a board pane exists but isn't focused        -> focus it (and its tab)
+#   - the focused pane IS the board pane           -> overlay: close it (herdr has no
+#                                                     hide-without-close; reopening is
+#                                                     cheap — the TUI refetches);
+#                                                     tab/split/zoomed: keep it focused
 #
 # herdr actions/keybindings run a command (no declarative "open this pane" field),
 # so this shells out to the herdr CLI via $HERDR_BIN_PATH (herdr injects it; fall
@@ -21,18 +23,44 @@ herdr_bin="${HERDR_BIN_PATH:-herdr}"
 # HERDR_BOARD_PLACEMENT picks where the board opens: overlay (default), tab, split, zoomed.
 # The pane does not inherit this shell's environment, so the editor settings the TUI's
 # Ctrl+E needs ($EDITOR and what nvim reads its config through) are passed along explicitly.
+placement="${HERDR_BOARD_PLACEMENT:-overlay}"
+
 open_pane() {
   local env_args=()
   local name
   for name in EDITOR VISUAL NVIM_APPNAME XDG_CONFIG_HOME XDG_DATA_HOME COLORTERM; do
     if [ -n "${!name:-}" ]; then env_args+=(--env "$name=${!name}"); fi
   done
-  exec "$herdr_bin" plugin pane open \
+  "$herdr_bin" plugin pane open \
     --plugin herdr-board \
     --entrypoint board \
-    --placement "${HERDR_BOARD_PLACEMENT:-overlay}" \
+    --placement "$placement" \
     ${env_args[@]+"${env_args[@]}"} \
-    --focus
+    --focus || exit $?
+  # --focus focuses the pane; a new tab still needs to be brought to the front.
+  if [ "$placement" != "overlay" ]; then
+    local tab
+    tab="$(board_tab_id)"
+    [ -n "$tab" ] && "$herdr_bin" tab focus "$tab" >/dev/null 2>&1
+  fi
+  exit 0
+}
+
+# The tab that holds the board pane, from the live pane list (empty when unknown).
+board_tab_id() {
+  command -v python3 >/dev/null 2>&1 || return 0
+  "$herdr_bin" pane list 2>/dev/null | python3 -c '
+import json, re, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+res = data.get("result", data)
+for p in (res.get("panes", []) if isinstance(res, dict) else []):
+    name = (p.get("label") or p.get("title") or "")
+    if name == "Board" or re.fullmatch(r"Board \[(?:(?:ACTIVE|ALL|ARCHIVED)|.+ · (?:ACTIVE|ALL|ARCHIVED))\]", name):
+        print(p.get("tab_id") or ""); break
+' 2>/dev/null
 }
 
 # Decide OPEN / "FOCUS <pane>" / "CLOSE <pane>" from the live pane list. Needs
@@ -63,22 +91,31 @@ if not board:
 pid = board.get("pane_id") or ""
 if not pid:
     print("OPEN"); sys.exit(0)
+tab = board.get("tab_id") or "-"
 if board.get("focused"):
-    print("CLOSE " + str(pid))
+    print("CLOSE " + str(pid) + " " + str(tab))
 else:
-    print("FOCUS " + str(pid))
+    print("FOCUS " + str(pid) + " " + str(tab))
 ' 2>/dev/null || echo OPEN)"
   fi
 fi
 
+focus_pane() {  # focus_pane <pane_id> <tab_id|->
+  if [ "$2" != "-" ]; then "$herdr_bin" tab focus "$2" >/dev/null 2>&1; fi
+  exec "$herdr_bin" plugin pane focus "$1"
+}
+
+# A repeat press only closes an overlay; a tab, split or zoomed board just stays focused.
+if [ "$placement" != "overlay" ]; then decision="${decision/#CLOSE /FOCUS }"; fi
+
 case "$decision" in
   "FOCUS "*)
-    pid="${decision#FOCUS }"
-    exec "$herdr_bin" plugin pane focus "$pid"
+    rest="${decision#FOCUS }"
+    focus_pane "${rest%% *}" "${rest#* }"
     ;;
   "CLOSE "*)
-    pid="${decision#CLOSE }"
-    exec "$herdr_bin" pane close "$pid"
+    rest="${decision#CLOSE }"
+    exec "$herdr_bin" pane close "${rest%% *}"
     ;;
   *)
     open_pane
