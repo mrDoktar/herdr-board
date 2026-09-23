@@ -16,6 +16,8 @@ mod modals;
 mod pane_title;
 #[path = "update/scope.rs"]
 mod scope;
+#[path = "update/selection_file.rs"]
+mod selection_file;
 #[path = "update/support_nav.rs"]
 mod support_nav;
 #[path = "update/switcher.rs"]

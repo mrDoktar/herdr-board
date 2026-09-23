@@ -68,6 +68,15 @@ pub fn session_name_from_socket(path: Option<&str>) -> Option<String> {
     (last_seg == "sessions" && !name.is_empty()).then(|| name.to_string())
 }
 
+/// The TUI's current card selection, for tools outside the TUI (a Herdr
+/// keybinding script): `$BOARD_TUI_SELECTION` else `<data>/tui-selection.json`.
+pub fn tui_selection_path() -> PathBuf {
+    match std::env::var_os("BOARD_TUI_SELECTION") {
+        Some(p) => PathBuf::from(p),
+        None => data_dir().join("tui-selection.json"),
+    }
+}
+
 /// Config file path: `$HERDR_BOARD_CONFIG` else `<config>/config.toml`.
 pub fn config_path() -> PathBuf {
     match std::env::var_os("HERDR_BOARD_CONFIG") {

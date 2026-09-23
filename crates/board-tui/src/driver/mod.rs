@@ -36,6 +36,12 @@ pub struct Driver {
     /// `event_loop` iteration calls `terminal.clear()` before drawing so every
     /// cell is repainted, then resets this.
     needs_full_redraw: bool,
+    /// Where the current card selection is published for tools outside the
+    /// TUI (the "open for human review" keybinding). `None` (tests,
+    /// embedders) publishes nothing.
+    selection_file: Option<PathBuf>,
+    /// The last selection written, so an unchanged selection is not rewritten.
+    published_selection: Option<Option<(i64, i64)>>,
 }
 
 impl Driver {
@@ -84,6 +90,8 @@ impl Driver {
             editor,
             origin,
             needs_full_redraw: false,
+            selection_file: None,
+            published_selection: None,
         };
         driver.set_pane_title(CardFilter::Active);
         Ok(driver)
@@ -94,6 +102,46 @@ impl Driver {
         self.origin.origin_socket = socket.clone();
         self.origin.session = board_core::paths::session_name_from_socket(socket.as_deref());
         self.app.origin_context = self.origin.clone();
+    }
+
+    /// Publish the selected card to `path` from now on (see [`Self::publish_selection`]).
+    pub fn enable_selection_file(&mut self, path: PathBuf) {
+        self.selection_file = Some(path);
+        self.published_selection = None;
+    }
+
+    /// Write `{"board_id", "card_id"}` (card `null` when nothing is selected)
+    /// to the selection file when it changed. Written to a temp file and
+    /// renamed, so a reader never sees half a file. Best effort: a failed
+    /// write only means the keybinding sees an older selection.
+    pub fn publish_selection(&mut self) {
+        let Some(path) = self.selection_file.clone() else {
+            return;
+        };
+        let board_id = self.app.board.board.id;
+        let current = self.app.selected_card_id().map(|card| (board_id, card));
+        if self.published_selection == Some(current) {
+            return;
+        }
+        let body = serde_json::json!({
+            "board_id": board_id,
+            "card_id": current.map(|(_, card)| card),
+        });
+        let tmp = path.with_extension("json.tmp");
+        let written = path
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| std::fs::write(&tmp, body.to_string()))
+            .and_then(|()| std::fs::rename(&tmp, &path));
+        // Either way this selection is settled: a failure is toasted once, not
+        // retried on every frame.
+        self.published_selection = Some(current);
+        if let Err(e) = written {
+            self.app.set_toast(
+                format!("could not save the selection to {}: {e}", path.display()),
+                true,
+            );
+        }
     }
 
     /// Feed one synthetic message: run the reducer, then apply its effects.

@@ -69,6 +69,7 @@ fn run_driver(driver: &mut Driver) -> Result<()> {
     // exact path needed to recover after boardd replacement; embedded/fake
     // clients keep the old one-shot/action-driven fallback.
     let (tx, rx) = mpsc::channel::<SubscriptionSignal>();
+    driver.enable_selection_file(board_core::paths::tui_selection_path());
     let initial_stream = driver.subscribe().ok();
     match driver.reconnect_path() {
         Some(path) => {
@@ -118,6 +119,7 @@ fn event_loop(
         driver.app.now = epoch_secs();
         driver.app.now_ms = epoch_millis();
         driver.expire_toast();
+        driver.publish_selection();
 
         let size = terminal.size()?;
         let new_area = Rect::new(0, 0, size.width, size.height);
