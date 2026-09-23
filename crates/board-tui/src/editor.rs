@@ -30,6 +30,7 @@ pub struct RealEditor;
 
 impl EditorLauncher for RealEditor {
     fn edit(&self, initial: &str) -> anyhow::Result<EditResult> {
+        use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
         use crossterm::terminal::{
             disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
         };
@@ -48,14 +49,17 @@ impl EditorLauncher for RealEditor {
 
         // Suspend the TUI.
         let mut out = std::io::stdout();
-        let _ = crossterm::execute!(out, LeaveAlternateScreen);
+        let _ = crossterm::execute!(out, DisableMouseCapture, LeaveAlternateScreen);
         let _ = disable_raw_mode();
 
         let status = std::process::Command::new(&editor).arg(&path).status();
 
-        // Resume the TUI regardless of the editor's exit status.
+        // Resume the TUI regardless of the editor's exit status. Mouse capture
+        // must be switched back on: an editor with mouse support (nvim) turns
+        // mouse reporting off when it exits, which left the board deaf to
+        // clicks and drags until it was restarted.
         let _ = enable_raw_mode();
-        let _ = crossterm::execute!(std::io::stdout(), EnterAlternateScreen);
+        let _ = crossterm::execute!(std::io::stdout(), EnterAlternateScreen, EnableMouseCapture);
 
         status?; // surface a spawn failure as an error (after restoring the terminal)
 

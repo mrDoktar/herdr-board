@@ -1438,3 +1438,53 @@ fn drag_card_dropped_on_its_own_row_is_noop() {
         "dropping on the origin slot must not reorder"
     );
 }
+
+// -- drag right after creating a card ----------------------------------------
+
+/// A card made through the `[ + New card ]` form can be dragged to another
+/// column straight away, without reopening the board.
+#[test]
+fn a_card_created_through_the_form_can_be_dragged_at_once() {
+    use board_tui::view::board_layout;
+    use crossterm::event::MouseButton;
+    let (w, h) = (120u16, 35u16);
+    let mut d = driver();
+    d.app.last_area = Rect::new(0, 0, w, h);
+    render_at(&mut d, w, h);
+    let zones = hit_zones(&d, w, h);
+    let (x, y) = zones
+        .iter()
+        .find(|(_, z)| *z == Zone::Action(UiAction::NewCard))
+        .expect("[ + New card ] is on the board")
+        .0;
+    d.handle(left_down(x, y));
+    d.handle(mouse(MouseEventKind::Up(MouseButton::Left), x, y));
+    assert_eq!(d.app.screen, Screen::CardForm);
+    if let Some(f) = d
+        .app
+        .form
+        .as_mut()
+        .and_then(|form| form.fields.iter_mut().find(|f| f.id == FieldId::Title))
+    {
+        f.set_text("Fresh card");
+    }
+    render_at(&mut d, w, h);
+    let zones = hit_zones(&d, w, h);
+    let (sx, sy) = zones.iter().find(|(_, z)| *z == Zone::BarSave).expect("save").0;
+    d.handle(left_down(sx, sy));
+    d.handle(mouse(MouseEventKind::Up(MouseButton::Left), sx, sy));
+    assert_eq!(d.app.screen, Screen::Board);
+    render_at(&mut d, w, h);
+
+    let layout = board_layout(&d.app, Rect::new(0, 0, w, h));
+    let todo = layout.cols.iter().find(|c| c.idx == 0).unwrap();
+    let (card_idx, r) = *todo.cards.last().unwrap();
+    let id = d.app.cards_of(d.app.col_id_at(0).unwrap())[card_idx].id;
+    let target = layout.cols.iter().find(|c| c.idx == 1).unwrap().rect;
+    d.handle(left_down(r.x + 1, r.y + 1));
+    d.handle(mouse(MouseEventKind::Drag(MouseButton::Left), target.x + 2, target.y + 3));
+    d.handle(mouse(MouseEventKind::Up(MouseButton::Left), target.x + 2, target.y + 3));
+
+    let next_column = d.app.col_id_at(1).unwrap();
+    assert!(d.app.cards_of(next_column).iter().any(|c| c.id == id), "the new card moved");
+}
