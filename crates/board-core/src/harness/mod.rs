@@ -17,7 +17,7 @@ use crate::launch::ExecutionSpec;
 use crate::prompt::EffectiveSettings;
 
 /// Harness stored on newly-created cards when the caller omits one.
-pub const DEFAULT_HARNESS: &str = "pi";
+pub const DEFAULT_HARNESS: &str = "claude";
 /// Built-ins routed without config-defined argv/env reconstruction.
 pub const BUILTIN_HARNESSES: [&str; 5] = ["pi", "claude", "codex", "opencode", "antigravity"];
 
