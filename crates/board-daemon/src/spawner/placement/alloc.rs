@@ -85,7 +85,10 @@ pub(crate) fn allocate_owned_pane(
     ownership: CardOwnership<'_>,
 ) -> anyhow::Result<OwnedPane> {
     if is_card_tab(label) {
-        allocate_card_pane(client, workspace_id, label, cwd, env, ownership)
+        let reclaimable = ownership.reclaimable_pane_ids;
+        let owned = allocate_card_pane(client, workspace_id, label, cwd, env, ownership)?;
+        close_superseded_card_tabs(client, workspace_id, &owned, reclaimable);
+        Ok(owned)
     } else {
         allocate_legacy_pane(client, workspace_id, label, cwd, env)
     }
@@ -599,4 +602,119 @@ fn reclaim_prior_children(
             .with_context(|| format!("reclaiming prior board-owned child {}", pane.pane_id))?;
     }
     Ok(())
+}
+
+/// Close the card's older tabs once its new run has a pane.
+///
+/// A stage that hands off to another harness (Claude → Codex and back) cannot
+/// reuse the prior agent pane, and the prior agent is usually still finishing
+/// the turn in which it ran `board done`, so placement opens a fresh tab. The
+/// old tab then lingers next to the new one. Here every other tab whose panes
+/// are *all* children of this card's ended runs is closed, whatever their live
+/// status: the run is over, so the agent's tail end is not worth keeping. A tab
+/// holding any other pane (the card's test server, a shell the human opened)
+/// is left alone. Best-effort: a failure is logged and never fails the launch.
+fn close_superseded_card_tabs(
+    client: &mut HerdrClient,
+    workspace_id: &str,
+    owned: &OwnedPane,
+    reclaimable_ids: &[String],
+) {
+    if reclaimable_ids.is_empty() {
+        return;
+    }
+    let panes = match client.pane_list(Some(workspace_id)) {
+        Ok(panes) => panes,
+        Err(error) => {
+            tracing::warn!(%error, "listing panes to close superseded card tabs");
+            return;
+        }
+    };
+    for pane_id in superseded_card_panes(&panes, owned, reclaimable_ids) {
+        if let Err(error) = close_owned_for_retry(client, &pane_id) {
+            tracing::warn!(%error, pane_id, "closing a superseded card tab's pane");
+        }
+    }
+}
+
+/// The panes to close: those in tabs other than the new run's tab where every
+/// pane is a child of one of the card's ended runs.
+fn superseded_card_panes(
+    panes: &[PaneInfo],
+    owned: &OwnedPane,
+    reclaimable_ids: &[String],
+) -> Vec<String> {
+    let is_reclaimable = |pane: &PaneInfo| reclaimable_ids.iter().any(|id| id == &pane.pane_id);
+    let mut tabs: BTreeMap<&str, Vec<&PaneInfo>> = BTreeMap::new();
+    for pane in panes.iter().filter(|pane| {
+        pane.workspace_id == owned.workspace_id && pane.tab_id != owned.tab_id
+    }) {
+        tabs.entry(pane.tab_id.as_str()).or_default().push(pane);
+    }
+    tabs.into_values()
+        .filter(|tab_panes| {
+            tab_panes.iter().all(|pane| is_reclaimable(pane) && pane.pane_id != owned.pane_id)
+        })
+        .flatten()
+        .map(|pane| pane.pane_id.clone())
+        .collect()
+}
+
+#[cfg(test)]
+mod superseded_tab_tests {
+    use super::*;
+
+    fn pane(id: &str, tab: &str) -> PaneInfo {
+        serde_json::from_value(serde_json::json!({
+            "pane_id": id,
+            "workspace_id": "w1",
+            "tab_id": tab,
+            "focused": false,
+            "revision": 0,
+        }))
+        .unwrap()
+    }
+
+    fn owned() -> OwnedPane {
+        OwnedPane {
+            pane_id: "new".into(),
+            workspace_id: "w1".into(),
+            tab_id: "t-new".into(),
+            anchor_pane_id: None,
+        }
+    }
+
+    #[test]
+    fn closes_older_tabs_that_only_hold_ended_run_panes() {
+        let panes = [
+            pane("new", "t-new"),
+            pane("plan", "t-plan"),
+            pane("review", "t-review"),
+        ];
+        let ended = ["plan".to_string(), "review".to_string()];
+        let mut closed = superseded_card_panes(&panes, &owned(), &ended);
+        closed.sort();
+        assert_eq!(closed, vec!["plan", "review"]);
+    }
+
+    #[test]
+    fn keeps_the_new_runs_tab_and_tabs_with_other_panes() {
+        let panes = [
+            pane("new", "t-new"),
+            pane("old", "t-new"),
+            pane("review", "t-mixed"),
+            pane("human-shell", "t-mixed"),
+            pane("server", "t-server"),
+        ];
+        let ended = ["old".to_string(), "review".to_string()];
+        assert!(superseded_card_panes(&panes, &owned(), &ended).is_empty());
+    }
+
+    #[test]
+    fn ignores_tabs_in_other_workspaces() {
+        let mut other = pane("plan", "t-plan");
+        other.workspace_id = "w2".into();
+        let ended = ["plan".to_string()];
+        assert!(superseded_card_panes(&[other], &owned(), &ended).is_empty());
+    }
 }

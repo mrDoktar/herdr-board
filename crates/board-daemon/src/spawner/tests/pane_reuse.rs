@@ -80,6 +80,7 @@ fn resume_hop_reuses_the_harness_pane_in_an_anchorless_managed_tab() {
             "ping",
             "tab.list",
             "pane.list",
+            "pane.list", // superseded card-tab sweep
             "agent.get",
             "agent.get",
             "agent.prompt",
@@ -159,6 +160,7 @@ fn resume_hop_reuses_the_prior_run_pane_without_split_or_agent_start() {
             "ping",
             "tab.list",
             "pane.list",
+            "pane.list", // superseded card-tab sweep
             "agent.get",
             "agent.get",
             "agent.prompt",
