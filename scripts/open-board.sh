@@ -18,11 +18,20 @@ set -uo pipefail
 
 herdr_bin="${HERDR_BIN_PATH:-herdr}"
 
+# HERDR_BOARD_PLACEMENT picks where the board opens: overlay (default), tab, split, zoomed.
+# The pane does not inherit this shell's environment, so the editor settings the TUI's
+# Ctrl+E needs ($EDITOR and what nvim reads its config through) are passed along explicitly.
 open_pane() {
+  local env_args=()
+  local name
+  for name in EDITOR VISUAL NVIM_APPNAME XDG_CONFIG_HOME XDG_DATA_HOME COLORTERM; do
+    if [ -n "${!name:-}" ]; then env_args+=(--env "$name=${!name}"); fi
+  done
   exec "$herdr_bin" plugin pane open \
     --plugin herdr-board \
     --entrypoint board \
-    --placement overlay \
+    --placement "${HERDR_BOARD_PLACEMENT:-overlay}" \
+    ${env_args[@]+"${env_args[@]}"} \
     --focus
 }
 

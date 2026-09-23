@@ -122,6 +122,17 @@ Herdr's default prefix is `ctrl+b`, so with defaults the binding is `Ctrl+B Shif
 prefix is `ctrl+a`, it is `Ctrl+A Shift+K`). Do not reuse `prefix+k` — it is Herdr's
 `focus_pane_up` by default.
 
+To open the board as a tab (or `split` / `zoomed`) instead of an overlay, run the launcher
+directly with `HERDR_BOARD_PLACEMENT` set:
+
+```toml
+command = "HERDR_BOARD_PLACEMENT=tab bash <plugin dir>/scripts/open-board.sh"
+```
+
+The launcher also passes your `EDITOR` (and `VISUAL`, `NVIM_APPNAME`, `XDG_CONFIG_HOME`,
+`XDG_DATA_HOME`, `COLORTERM`) into the board pane, so **Ctrl+E** in a card form opens your
+own editor with its normal configuration — plugin panes do not inherit the shell environment.
+
 </details>
 
 ### Supported harnesses
