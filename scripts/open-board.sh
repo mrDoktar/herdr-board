@@ -25,6 +25,15 @@ herdr_bin="${HERDR_BIN_PATH:-herdr}"
 # Ctrl+E needs ($EDITOR and what nvim reads its config through) are passed along explicitly.
 placement="${HERDR_BOARD_PLACEMENT:-overlay}"
 
+# A shortcut run by the Herdr server often has no $EDITOR: the server was not
+# started from a shell that set it (zsh users set it in ~/.zshenv, which bash
+# never reads). Ask the user's own login shell before falling back to the
+# TUI's default (vi).
+if [ -z "${EDITOR:-}" ] && [ -z "${VISUAL:-}" ]; then
+  EDITOR="$("${SHELL:-/bin/zsh}" -lc 'printf %s "${EDITOR:-$VISUAL}"' 2>/dev/null </dev/null | tail -n 1)"
+  [ -n "$EDITOR" ] && export EDITOR || unset EDITOR
+fi
+
 open_pane() {
   local env_args=()
   local name
