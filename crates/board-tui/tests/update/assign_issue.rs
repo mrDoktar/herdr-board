@@ -8,7 +8,7 @@ use board_core::client::BoardClient;
 use board_core::protocol::CardCreateParams;
 use board_tui::app::Screen;
 use board_tui::github::IssueAssigner;
-use board_tui::testkit::{demo_client, driver_with_editor, key};
+use board_tui::testkit::{demo_client, driver_with_editor, key, render_at};
 use board_tui::Driver;
 use crossterm::event::KeyCode;
 
@@ -142,4 +142,25 @@ fn a_github_failure_keeps_the_card_unchanged() {
     assert_eq!(tags_of(&d), ["github"]);
     assert_eq!(toast(&d), "could not assign the issue: HTTP 403: no access");
     assert!(d.app.toast.as_ref().unwrap().is_error);
+}
+
+#[test]
+fn the_status_line_says_whether_the_issue_is_yours() {
+    let assigner = FakeAssigner::default();
+    let (mut d, _) = open_card(&["github"], &assigner);
+    let before = render_at(&mut d, 120, 35);
+    assert!(before.contains("· not yours"), "{before}");
+
+    d.handle(key(KeyCode::Char('A')));
+    let after = render_at(&mut d, 120, 35);
+    assert!(
+        after.contains("· yours") && !after.contains("not yours"),
+        "{after}"
+    );
+}
+
+#[test]
+fn a_card_not_made_from_an_issue_shows_no_assignee() {
+    let (mut d, _) = open_card(&[], &FakeAssigner::default());
+    assert!(!render_at(&mut d, 120, 35).contains("yours"));
 }

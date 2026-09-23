@@ -312,6 +312,17 @@ fn preferred_section_height(available: u16, preferred: u16) -> u16 {
     }
 }
 
+/// The Status-line suffix for a GitHub issue card: whether the issue is
+/// assigned to you (its `mine` tag). `None` for other cards.
+fn issue_assignee_label(card: &board_core::model::Card) -> Option<(&'static str, Color)> {
+    crate::github::issue_url(card)?;
+    Some(if card.tags.iter().any(|t| t == crate::github::MINE_TAG) {
+        (" · yours", Color::Green)
+    } else {
+        (" · not yours", Color::DarkGray)
+    })
+}
+
 fn detail_metadata(detail: &CardDetail) -> (String, String) {
     let card = &detail.card;
     // Daemon-stamped labels: ready display strings, rendered verbatim. The
@@ -811,14 +822,25 @@ pub(super) fn draw_detail(app: &App, f: &mut Frame, area: Rect) {
     if card.archived_at.is_some() {
         status.push_str(" · ARCHIVED");
     }
-    let status = truncate(&status, layout.status.width.saturating_sub(2) as usize);
+    let width = layout.status.width.saturating_sub(2) as usize;
+    let status = truncate(&status, width);
+    let mut spans = vec![Span::styled(
+        status.clone(),
+        Style::default().fg(color).add_modifier(Modifier::BOLD),
+    )];
+    // GitHub issue cards also say whether the issue is assigned to you.
+    if let Some((text, color)) = issue_assignee_label(card) {
+        let room = width.saturating_sub(status.chars().count());
+        if room > 0 {
+            spans.push(Span::styled(
+                truncate(text, room),
+                Style::default().fg(color),
+            ));
+        }
+    }
     if layout.status.height >= MIN_CLOSED_SECTION_HEIGHT {
         f.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                status,
-                Style::default().fg(color).add_modifier(Modifier::BOLD),
-            )))
-            .block(section_block("Status", false)),
+            Paragraph::new(Line::from(spans)).block(section_block("Status", false)),
             layout.status,
         );
     }
