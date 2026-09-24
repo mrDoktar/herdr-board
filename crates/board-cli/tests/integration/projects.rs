@@ -266,7 +266,7 @@ fn board_rename_works_and_rejects_sibling_collisions() {
 }
 
 /// A card made on a project board with no space runs in a workspace of its
-/// own: `new_workspace`, labelled `card-<id>`, in the project folder.
+/// own: `new_workspace`, named after its title, in the project folder.
 #[test]
 fn card_on_a_project_board_gets_its_own_workspace() {
     let td = TestDaemon::start(&[]);
@@ -286,7 +286,7 @@ fn card_on_a_project_board_gets_its_own_workspace() {
     ]));
 
     assert_eq!(card["space_kind"], "new_workspace");
-    assert_eq!(card["space_ref"], format!("card-{}", card["id"]));
+    assert_eq!(card["space_ref"], format!("#{} isolated", card["id"]));
     assert_eq!(card["space_cwd"], scope);
 }
 

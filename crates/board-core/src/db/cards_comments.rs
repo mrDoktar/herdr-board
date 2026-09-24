@@ -359,15 +359,20 @@ impl Db {
         self.require_card(c.id)
     }
 
-    /// Give a `new_workspace` card with a blank label its own label,
-    /// `card-<id>`, so it never lands in another card's workspace. A card in a
-    /// shared `workspace` space is left alone.
+    /// Give a `new_workspace` card with a blank label its own label, named
+    /// after the feature it works on: `#<id> <title>` (see [`feature_label`]).
+    /// The id keeps it unique, so it never lands in another card's workspace.
+    /// A card in a shared `workspace` space is left alone.
     pub(crate) fn isolate_card_space(conn: &rusqlite::Connection, id: i64) -> Result<()> {
+        let title: String =
+            conn.query_row("SELECT title FROM cards WHERE id = ?1", params![id], |r| {
+                r.get(0)
+            })?;
         conn.execute(
-            "UPDATE cards SET space_ref = 'card-' || id
+            "UPDATE cards SET space_ref = ?2
              WHERE id = ?1 AND space_kind = 'new_workspace'
                AND TRIM(COALESCE(space_ref, '')) = ''",
-            params![id],
+            params![id, feature_label(id, &title)],
         )?;
         Ok(())
     }
@@ -811,4 +816,15 @@ impl Db {
 /// The stored form of a tag set: its [`normalize_tags`] JSON array.
 fn tags_json(tags: &[String]) -> String {
     serde_json::to_string(&crate::model::normalize_tags(tags)).expect("a string list serializes")
+}
+
+/// The workspace name for the feature a card works on: `#<id> <title>`, with
+/// the title's whitespace collapsed to single spaces.
+pub fn feature_label(id: i64, title: &str) -> String {
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    if title.is_empty() {
+        format!("#{id}")
+    } else {
+        format!("#{id} {title}")
+    }
 }

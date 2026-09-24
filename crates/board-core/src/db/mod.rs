@@ -4,6 +4,7 @@
 
 mod boards_columns;
 mod cards_comments;
+pub use cards_comments::feature_label;
 mod constraints;
 mod migrations;
 mod projects;

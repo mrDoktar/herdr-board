@@ -96,7 +96,7 @@ fn main_checkout(folder: &str) -> String {
 /// Every card gets a workspace of its own unless it asks for a shared one:
 /// with no space given, a card on a board whose project has a folder becomes
 /// `new_workspace`, and a `new_workspace` card with a blank cwd starts in that
-/// folder's main checkout. The label is filled with `card-<id>` once the id
+/// folder's main checkout. The label is filled with `#<id> <title>` once the id
 /// exists (`Db::isolate_card_space`). Boards without a folder (the Global
 /// project) keep the old shared default.
 fn fill_space_defaults(d: &Daemon, p: &mut CardCreateParams) {

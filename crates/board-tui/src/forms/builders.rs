@@ -53,16 +53,13 @@ impl Form {
         Self::card_create_from_values(column_id, CardValues::from_card(None, session))
     }
 
-    /// A new card that defaults to where the board was opened: the origin's
-    /// session, workspace, and folder. The explicit folder keeps dispatch from
-    /// having to choose among the workspace's pane cwds — which always differ
-    /// once the board's own pane (started in the plugin directory) is open.
+    /// A new card that defaults to the origin's session and a workspace of its
+    /// own. The workspace name and folder stay blank: the daemon names the
+    /// workspace after the card's title and starts it in the main checkout of
+    /// the board's project folder. The origin's workspace id is not copied in,
+    /// because in the name field it would become the new workspace's label.
     pub fn card_create_with_origin(column_id: i64, origin: &OriginContext) -> Form {
-        let mut values = CardValues::from_card(None, origin.session.as_deref());
-        if let Some(workspace_id) = &origin.workspace_id {
-            values.space_ref = workspace_id.clone();
-            values.space_cwd = origin.cwd.clone().unwrap_or_default();
-        }
+        let values = CardValues::from_card(None, origin.session.as_deref());
         Self::card_create_from_values(column_id, values)
     }
 
@@ -602,7 +599,7 @@ pub(super) fn build_card_fields(
         (
             Field::text(
                 FieldId::SpaceRef,
-                "workspace name (blank = card-<id>)",
+                "workspace name (blank = #<id> <title>)",
                 &v.space_ref,
                 false,
             ),

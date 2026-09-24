@@ -309,7 +309,10 @@ fn duplicate_card_copies_config_resets_state_and_lands_below_original() {
     assert_eq!(copy.session, original.session);
     assert_eq!(copy.space_kind, original.space_kind);
     // Its own workspace, never the original's.
-    assert_eq!(copy.space_ref, Some(format!("card-{}", copy.id)));
+    assert_eq!(
+        copy.space_ref,
+        Some(format!("#{} Ship the widget (copy)", copy.id))
+    );
     assert_eq!(copy.space_cwd, original.space_cwd);
     assert_eq!(copy.board_id, original.board_id);
     assert_eq!(copy.column_id, original.column_id);
@@ -1201,7 +1204,7 @@ fn duplicate_card_copies_tags() {
 }
 
 #[test]
-fn new_workspace_card_with_blank_label_is_labelled_by_its_id() {
+fn new_workspace_card_with_blank_label_is_named_after_its_title() {
     let db = mem();
     let card = db
         .create_card(&CardCreateParams {
@@ -1211,7 +1214,7 @@ fn new_workspace_card_with_blank_label_is_labelled_by_its_id() {
             ..Default::default()
         })
         .unwrap();
-    assert_eq!(card.space_ref, Some(format!("card-{}", card.id)));
+    assert_eq!(card.space_ref, Some(format!("#{} Auto", card.id)));
 
     // Clearing the label later gives the same one back.
     let card = db
@@ -1221,7 +1224,7 @@ fn new_workspace_card_with_blank_label_is_labelled_by_its_id() {
             ..Default::default()
         })
         .unwrap();
-    assert_eq!(card.space_ref, Some(format!("card-{}", card.id)));
+    assert_eq!(card.space_ref, Some(format!("#{} Auto", card.id)));
 }
 
 #[test]
@@ -1237,4 +1240,15 @@ fn new_workspace_card_keeps_an_explicit_label() {
         })
         .unwrap();
     assert_eq!(card.space_ref.as_deref(), Some("issue-42"));
+}
+
+#[test]
+fn feature_label_is_the_card_id_and_title() {
+    use board_core::db::feature_label;
+    assert_eq!(
+        feature_label(52, "Prevent stray emails"),
+        "#52 Prevent stray emails"
+    );
+    assert_eq!(feature_label(7, "  Fix\n  login "), "#7 Fix login");
+    assert_eq!(feature_label(9, "   "), "#9");
 }

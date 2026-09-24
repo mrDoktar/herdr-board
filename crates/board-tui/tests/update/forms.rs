@@ -1082,27 +1082,18 @@ fn form_title_advertises_the_toggle_only_on_picker_fields() {
     );
 }
 
-/// Opening the board from a Herdr pane makes a new card target that pane's
-/// workspace and folder. Without an explicit cwd the daemon must pick among
-/// every live pane cwd — and the board's own overlay pane (started in the
-/// plugin directory) always makes that ambiguous.
+/// Opening the board from a Herdr pane gives a new card a workspace of its
+/// own. The pane's workspace id is not copied into the name field (it would
+/// become the new workspace's label); name and folder stay blank for the
+/// daemon to fill from the title and the project folder.
 #[test]
-fn new_card_defaults_space_to_the_invoking_workspace_and_pane_cwd() {
+fn new_card_from_a_pane_gets_its_own_blank_workspace() {
     let origin = board_tui::OriginContext {
         workspace_id: Some("wS".into()),
         cwd: Some("/repo".into()),
         ..Default::default()
     };
     let mut form = Form::card_create_with_origin(1, &origin);
-    let cwd_idx = form
-        .fields
-        .iter()
-        .position(|f| f.id == FieldId::SpaceCwd)
-        .unwrap();
-    assert!(
-        form.field_visible(cwd_idx),
-        "cwd must be editable for a workspace card"
-    );
     form.fields
         .iter_mut()
         .find(|f| f.id == FieldId::Title)
@@ -1110,9 +1101,9 @@ fn new_card_defaults_space_to_the_invoking_workspace_and_pane_cwd() {
         .set_text("t");
     match form.submit().unwrap() {
         Submit::CardCreate(params) => {
-            assert_eq!(params.space_kind, Some(SpaceKind::Workspace));
-            assert_eq!(params.space_ref.as_deref(), Some("wS"));
-            assert_eq!(params.space_cwd.as_deref(), Some("/repo"));
+            assert_eq!(params.space_kind, Some(SpaceKind::NewWorkspace));
+            assert_eq!(params.space_ref, None);
+            assert_eq!(params.space_cwd, None);
         }
         _ => panic!("expected card create"),
     }
