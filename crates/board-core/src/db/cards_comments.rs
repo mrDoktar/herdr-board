@@ -153,6 +153,7 @@ impl Db {
             ],
         )?;
         let id = self.conn.last_insert_rowid();
+        Self::isolate_card_space(&self.conn, id)?;
         if let Some(pos) = p.position {
             self.move_card(id, column_id, Some(pos))?;
         }
@@ -220,6 +221,7 @@ impl Db {
             ],
         )?;
         let card_id = tx.last_insert_rowid();
+        Self::isolate_card_space(&tx, card_id)?;
         if p.position.is_some() {
             Self::place_card_in_column_tx(&tx, card_id, column_id, p.position)?;
         }
@@ -262,12 +264,19 @@ impl Db {
                 card.permission_mode,
                 card.session,
                 card.space_kind.as_str(),
-                card.space_ref,
+                // A copy of a card in its own workspace gets its own workspace
+                // too (`card-<copy id>`), never the original's.
+                if card.space_kind == SpaceKind::NewWorkspace {
+                    None
+                } else {
+                    card.space_ref.clone()
+                },
                 card.space_cwd,
                 tags_json(&card.tags),
             ],
         )?;
         let copy_id = tx.last_insert_rowid();
+        Self::isolate_card_space(&tx, copy_id)?;
         // Compacts the whole column: every card from `card.position + 1` on
         // (including the fresh row at the end) shifts one slot down.
         Self::place_card_in_column_tx(&tx, copy_id, card.column_id, Some(card.position + 1))?;
@@ -346,7 +355,21 @@ impl Db {
                 c.id,
             ],
         )?;
+        Self::isolate_card_space(&self.conn, c.id)?;
         self.require_card(c.id)
+    }
+
+    /// Give a `new_workspace` card with a blank label its own label,
+    /// `card-<id>`, so it never lands in another card's workspace. A card in a
+    /// shared `workspace` space is left alone.
+    pub(crate) fn isolate_card_space(conn: &rusqlite::Connection, id: i64) -> Result<()> {
+        conn.execute(
+            "UPDATE cards SET space_ref = 'card-' || id
+             WHERE id = ?1 AND space_kind = 'new_workspace'
+               AND TRIM(COALESCE(space_ref, '')) = ''",
+            params![id],
+        )?;
+        Ok(())
     }
 
     pub fn set_card_archived(&self, id: i64, archived: bool) -> Result<Card> {

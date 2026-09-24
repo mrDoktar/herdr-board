@@ -470,7 +470,8 @@ impl CardValues {
             None => CardValues {
                 harness: DEFAULT_HARNESS.to_string(),
                 session: default_session.map(str::to_string),
-                space_kind: "workspace".to_string(),
+                // Every new card gets a workspace of its own by default.
+                space_kind: "new_workspace".to_string(),
                 ..CardValues::default()
             },
         }
@@ -599,7 +600,12 @@ pub(super) fn build_card_fields(
     let ref_matches_workspace = spaces.iter().any(|s| s.id == v.space_ref);
     let (space_ref_field, space_ref_custom_init) = if is_new_workspace {
         (
-            Field::text(FieldId::SpaceRef, "workspace name", &v.space_ref, false),
+            Field::text(
+                FieldId::SpaceRef,
+                "workspace name (blank = card-<id>)",
+                &v.space_ref,
+                false,
+            ),
             "",
         )
     } else if is_workspace && !spaces.is_empty() {
@@ -665,7 +671,7 @@ pub(super) fn build_card_fields(
         Field::text(
             FieldId::SpaceCwd,
             if is_new_workspace {
-                "cwd"
+                "cwd (blank = project folder)"
             } else {
                 "cwd (blank = from panes)"
             },

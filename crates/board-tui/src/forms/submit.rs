@@ -189,6 +189,9 @@ impl Form {
     /// stays the daemon's job.
     fn preflight(&self) -> Result<(), ValidationError> {
         match self.kind {
+            // A new card's blank cwd is filled by the daemon from the board's
+            // project folder, so only the daemon can reject it.
+            FormKind::CardCreate { .. } if self.opt_text(FieldId::SpaceCwd).is_none() => Ok(()),
             FormKind::CardCreate { .. } | FormKind::CardEdit { .. } => validate_card_space(
                 self.opt_space_kind().unwrap_or(SpaceKind::Workspace),
                 self.card_space_ref().as_deref(),

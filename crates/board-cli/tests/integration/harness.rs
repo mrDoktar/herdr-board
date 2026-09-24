@@ -659,11 +659,11 @@ fn session_list_without_herdr_surfaces_error() {
 }
 
 #[test]
-fn card_new_new_workspace_missing_cwd_is_validation_error() {
-    // `new-workspace` requires both --space-ref and --space-cwd; omitting cwd
-    // must surface the daemon's validation error (code 1).
+fn card_new_new_workspace_missing_cwd_defaults_to_the_project_folder() {
+    // `new-workspace` without --space-cwd on a board whose project has a
+    // folder starts in that folder instead of failing validation.
     let td = TestDaemon::start(&[]);
-    let out = td.board(&[
+    let card = json_output(&td.board(&[
         "card",
         "new",
         "--title",
@@ -674,15 +674,12 @@ fn card_new_new_workspace_missing_cwd_is_validation_error() {
         "new-workspace",
         "--space-ref",
         "my-feature",
-    ]);
+        "--json",
+    ]));
+    assert_eq!(card["space_ref"], "my-feature");
     assert!(
-        !out.status.success(),
-        "missing space-cwd should exit non-zero"
-    );
-    let err = String::from_utf8_lossy(&out.stderr);
-    assert!(
-        err.contains("error 1"),
-        "error surfaces the validation code; got: {err}"
+        card["space_cwd"].as_str().is_some_and(|s| !s.is_empty()),
+        "cwd is filled from the project folder; got: {card}"
     );
 }
 

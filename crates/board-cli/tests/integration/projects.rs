@@ -264,3 +264,92 @@ fn board_rename_works_and_rejects_sibling_collisions() {
         "sibling collision is a bad request"
     );
 }
+
+/// A card made on a project board with no space runs in a workspace of its
+/// own: `new_workspace`, labelled `card-<id>`, in the project folder.
+#[test]
+fn card_on_a_project_board_gets_its_own_workspace() {
+    let td = TestDaemon::start(&[]);
+    let dir = td._dir.path().join("plain");
+    std::fs::create_dir_all(&dir).unwrap();
+    let scope = canonical(&dir);
+    json_output(&td.board(&["project", "create", &scope, "--json"]));
+
+    let card = json_output(&td.board(&[
+        "card",
+        "new",
+        "--title",
+        "isolated",
+        "--harness",
+        "fake",
+        "--json",
+    ]));
+
+    assert_eq!(card["space_kind"], "new_workspace");
+    assert_eq!(card["space_ref"], format!("card-{}", card["id"]));
+    assert_eq!(card["space_cwd"], scope);
+}
+
+/// When the project folder is a git worktree, the card starts in the main
+/// checkout, which outlives the worktree.
+#[test]
+fn card_on_a_worktree_project_starts_in_the_main_checkout() {
+    let td = TestDaemon::start(&[]);
+    let repo = td._dir.path().join("repo");
+    std::fs::create_dir_all(&repo).unwrap();
+    let git = |args: &[&str]| {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&repo)
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?}: {out:?}");
+    };
+    git(&["init", "-q"]);
+    git(&["commit", "-q", "--allow-empty", "-m", "init"]);
+    let wt = td._dir.path().join("wt");
+    git(&["worktree", "add", "-q", wt.to_str().unwrap()]);
+    json_output(&td.board(&["project", "create", &canonical(&wt), "--json"]));
+
+    let card = json_output(&td.board(&[
+        "card",
+        "new",
+        "--title",
+        "isolated",
+        "--harness",
+        "fake",
+        "--json",
+    ]));
+
+    assert_eq!(card["space_kind"], "new_workspace");
+    assert_eq!(card["space_cwd"], canonical(&repo));
+}
+
+/// An explicit shared workspace is still honoured on a project board.
+#[test]
+fn card_can_still_ask_for_a_shared_workspace() {
+    let td = TestDaemon::start(&[]);
+    let dir = td._dir.path().join("shared");
+    std::fs::create_dir_all(&dir).unwrap();
+    json_output(&td.board(&["project", "create", &canonical(&dir), "--json"]));
+
+    let card = json_output(&td.board(&[
+        "card",
+        "new",
+        "--title",
+        "shared",
+        "--harness",
+        "fake",
+        "--space-kind",
+        "workspace",
+        "--space-ref",
+        "wS",
+        "--json",
+    ]));
+
+    assert_eq!(card["space_kind"], "workspace");
+    assert_eq!(card["space_ref"], "wS");
+    assert_eq!(card["space_cwd"], Value::Null);
+}

@@ -308,7 +308,8 @@ fn duplicate_card_copies_config_resets_state_and_lands_below_original() {
     assert_eq!(copy.permission_mode, original.permission_mode);
     assert_eq!(copy.session, original.session);
     assert_eq!(copy.space_kind, original.space_kind);
-    assert_eq!(copy.space_ref, original.space_ref);
+    // Its own workspace, never the original's.
+    assert_eq!(copy.space_ref, Some(format!("card-{}", copy.id)));
     assert_eq!(copy.space_cwd, original.space_cwd);
     assert_eq!(copy.board_id, original.board_id);
     assert_eq!(copy.column_id, original.column_id);
@@ -1197,4 +1198,43 @@ fn duplicate_card_copies_tags() {
         .unwrap()
         .id;
     assert_eq!(db.duplicate_card(id).unwrap().tags, tags(&["github"]));
+}
+
+#[test]
+fn new_workspace_card_with_blank_label_is_labelled_by_its_id() {
+    let db = mem();
+    let card = db
+        .create_card(&CardCreateParams {
+            title: "Auto".into(),
+            space_kind: Some(SpaceKind::NewWorkspace),
+            space_cwd: Some("/tmp/repo".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(card.space_ref, Some(format!("card-{}", card.id)));
+
+    // Clearing the label later gives the same one back.
+    let card = db
+        .update_card(&CardUpdateParams {
+            id: card.id,
+            space_ref: Patch::Clear,
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(card.space_ref, Some(format!("card-{}", card.id)));
+}
+
+#[test]
+fn new_workspace_card_keeps_an_explicit_label() {
+    let db = mem();
+    let card = db
+        .create_card(&CardCreateParams {
+            title: "Named".into(),
+            space_kind: Some(SpaceKind::NewWorkspace),
+            space_ref: Some("issue-42".into()),
+            space_cwd: Some("/tmp/repo".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(card.space_ref.as_deref(), Some("issue-42"));
 }

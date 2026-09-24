@@ -467,7 +467,8 @@ fn card_duplicate_copies_config_resets_state_and_emits_card_created() {
     assert_eq!(copy.permission_mode, original.permission_mode);
     assert_eq!(copy.session, original.session);
     assert_eq!(copy.space_kind, original.space_kind);
-    assert_eq!(copy.space_ref, original.space_ref);
+    // Its own workspace, never the original's.
+    assert_eq!(copy.space_ref, Some(format!("card-{}", copy.id)));
     assert_eq!(copy.space_cwd, original.space_cwd);
     assert_eq!(copy.column_id, original.column_id);
     assert_eq!(copy.position, original.position + 1);

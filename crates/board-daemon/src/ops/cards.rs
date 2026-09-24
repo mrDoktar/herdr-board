@@ -67,7 +67,58 @@ fn pending_create_card(db: &Db, p: &CardCreateParams) -> Result<Card> {
     })
 }
 
-pub(super) fn card_create(d: &Arc<Daemon>, p: CardCreateParams) -> Result<Value> {
+/// The main checkout of the repository that `folder` belongs to. A board's
+/// project folder can be a git worktree; a card must not start in a worktree
+/// that may be removed later, so it starts in the main checkout instead.
+/// Anything that is not a git checkout is returned as is.
+fn main_checkout(folder: &str) -> String {
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            folder,
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+        ])
+        .output();
+    match out {
+        Ok(o) if o.status.success() => {
+            let common = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            std::path::Path::new(&common)
+                .parent()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|| folder.to_string())
+        }
+        _ => folder.to_string(),
+    }
+}
+
+/// Every card gets a workspace of its own unless it asks for a shared one:
+/// with no space given, a card on a board whose project has a folder becomes
+/// `new_workspace`, and a `new_workspace` card with a blank cwd starts in that
+/// folder's main checkout. The label is filled with `card-<id>` once the id
+/// exists (`Db::isolate_card_space`). Boards without a folder (the Global
+/// project) keep the old shared default.
+fn fill_space_defaults(d: &Daemon, p: &mut CardCreateParams) {
+    let folder = {
+        let db = d.store.lock();
+        db.get_board(p.board_id.unwrap_or(BOARD_ID))
+            .ok()
+            .and_then(|b| b.scope_path)
+            .filter(|s| !s.trim().is_empty())
+    };
+    let Some(folder) = folder else { return };
+    if p.space_kind.is_none() {
+        p.space_kind = Some(SpaceKind::NewWorkspace);
+    }
+    let blank_cwd = p.space_cwd.as_deref().is_none_or(|s| s.trim().is_empty());
+    if p.space_kind == Some(SpaceKind::NewWorkspace) && blank_cwd {
+        p.space_cwd = Some(main_checkout(&folder));
+    }
+}
+
+pub(super) fn card_create(d: &Arc<Daemon>, mut p: CardCreateParams) -> Result<Value> {
+    fill_space_defaults(d, &mut p);
     let harness = p.harness.as_deref().unwrap_or(DEFAULT_HARNESS);
     validate_card_values(
         harness,

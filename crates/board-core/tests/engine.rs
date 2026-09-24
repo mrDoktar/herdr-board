@@ -339,23 +339,21 @@ fn validate_bypass_override_refused() {
 }
 
 #[test]
-fn validate_new_workspace_requires_ref_and_cwd() {
+fn validate_new_workspace_requires_cwd_only() {
     // workspace kind: no ref/cwd requirement here.
     assert!(validate_card_space(SpaceKind::Workspace, None, None).is_ok());
     assert!(validate_card_space(SpaceKind::Workspace, Some("w4"), None).is_ok());
 
-    // new_workspace needs BOTH a non-empty label and cwd.
+    // new_workspace needs a cwd; a blank label becomes `card-<id>` on store.
     assert!(validate_card_space(SpaceKind::NewWorkspace, Some("feat"), Some("/repo")).is_ok());
+    assert!(validate_card_space(SpaceKind::NewWorkspace, None, Some("/repo")).is_ok());
+    assert!(validate_card_space(SpaceKind::NewWorkspace, Some("  "), Some("/repo")).is_ok());
     assert_eq!(
         validate_card_space(SpaceKind::NewWorkspace, Some("feat"), None),
         Err(ValidationError::NewWorkspaceIncomplete)
     );
     assert_eq!(
-        validate_card_space(SpaceKind::NewWorkspace, None, Some("/repo")),
-        Err(ValidationError::NewWorkspaceIncomplete)
-    );
-    assert_eq!(
-        validate_card_space(SpaceKind::NewWorkspace, Some("  "), Some("/repo")),
+        validate_card_space(SpaceKind::NewWorkspace, Some("feat"), Some("  ")),
         Err(ValidationError::NewWorkspaceIncomplete)
     );
 }
