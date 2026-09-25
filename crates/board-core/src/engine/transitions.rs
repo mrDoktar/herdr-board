@@ -5,7 +5,7 @@ use crate::protocol::{CardStatus, RunOutcome, Trigger};
 ///
 /// This is a domain policy, not a daemon scheduling setting: keeping it in the
 /// pure engine ensures every lifecycle entry point applies the same guard.
-pub const MAX_AUTO_HOPS: u32 = 8;
+pub const MAX_AUTO_HOPS: u32 = 50;
 
 /// Result of applying the automatic-hop guard to a transition.
 #[derive(Debug, Clone, PartialEq, Eq)]

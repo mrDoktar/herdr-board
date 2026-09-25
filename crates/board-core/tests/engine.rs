@@ -609,18 +609,18 @@ fn auto_hop_policy_preserves_target_and_stops_at_limit() {
     let cols = pipeline();
     let transition = decide_transition(&cols[1], &cols, RunOutcome::Ok, Some(1));
     assert_eq!(
-        decide_auto_hop(7, &transition),
-        AutoHopDecision::Continue { hop: 8 }
+        decide_auto_hop(49, &transition),
+        AutoHopDecision::Continue { hop: 50 }
     );
     assert_eq!(
-        decide_auto_hop(8, &transition),
+        decide_auto_hop(50, &transition),
         AutoHopDecision::Stop {
-            message: "auto-chain limit (8) reached without human action; stopping".into()
+            message: "auto-chain limit (50) reached without human action; stopping".into()
         }
     );
 
     let terminal = decide_transition(&cols[0], &cols, RunOutcome::Ok, Some(1));
-    assert_eq!(decide_auto_hop(8, &terminal), AutoHopDecision::Reset);
+    assert_eq!(decide_auto_hop(50, &terminal), AutoHopDecision::Reset);
 }
 
 fn run_with_session(id: i64, started: bool, session_id: Option<&str>) -> Run {
