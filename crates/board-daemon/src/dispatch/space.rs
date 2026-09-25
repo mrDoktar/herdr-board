@@ -67,18 +67,18 @@ pub(crate) fn resolve_space(
             match find_workspace_by_label(&workspaces, label) {
                 // A reused workspace must use a cwd from one of its live
                 // panes. The supported Herdr launch contract does not inherit
-                // workspace cwd, so the card's original create cwd is not a
-                // safe fallback here.
+                // workspace cwd, so the card's create cwd is used only when a
+                // live pane is in it (it breaks a tie between panes).
                 Some(id) => {
-                    let live = workspace_cwd(client, &id).map_err(|error| {
+                    let live = workspace_cwd_preferring(client, &id, Some(cwd)).map_err(|error| {
                         // A reused `new_workspace` card deliberately does NOT
                         // apply its `space_cwd` to the live workspace, so the
                         // generic "set an explicit space_cwd" advice would be
                         // unusable here — point at the real remedy instead.
                         anyhow::anyhow!(
                             "reused new_workspace workspace '{id}' has no usable cwd from its live \
-                             panes ({error:#}); make the live pane cwds consistent — a reused \
-                             new_workspace card's space_cwd is deliberately not applied"
+                             panes ({error:#}); no live pane is in the card's space_cwd '{cwd}', so \
+                             close the panes from other folders or open one in '{cwd}'"
                         )
                     })?;
                     Ok(ResolvedSpace {
@@ -122,6 +122,19 @@ pub(crate) fn workspace_cwd(
     client: &mut HerdrClient,
     workspace_id: &str,
 ) -> anyhow::Result<String> {
+    workspace_cwd_preferring(client, workspace_id, None)
+}
+
+/// [`workspace_cwd`], except that when the live panes disagree and one of
+/// them is in `preferred` (the card's own `space_cwd`), that folder wins.
+/// A card's workspace often holds panes from elsewhere — the board opened as
+/// a tab there runs in the plugin folder — and those must not stop the card.
+/// The chosen cwd is still one a live pane has, so the launch contract holds.
+pub(crate) fn workspace_cwd_preferring(
+    client: &mut HerdrClient,
+    workspace_id: &str,
+    preferred: Option<&str>,
+) -> anyhow::Result<String> {
     let snapshot = client.session_snapshot().map_err(|error| {
         // `anyhow::Error`'s Display shows only the outermost context. Include
         // the rendered cause in that context so a dispatch failure tells the
@@ -150,6 +163,9 @@ pub(crate) fn workspace_cwd(
     let distinct: BTreeSet<_> = panes.iter().map(|(_, cwd)| *cwd).collect();
     if distinct.len() == 1 {
         return Ok((*distinct.first().expect("one distinct cwd")).to_owned());
+    }
+    if let Some(cwd) = preferred.filter(|cwd| distinct.contains(cwd)) {
+        return Ok(cwd.to_owned());
     }
 
     let mut candidates: Vec<_> = panes
